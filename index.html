@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>e-Kaunter PKPJ</title>
@@ -38,8 +37,10 @@
 <div id="loader" class="loader hidden"><div class="loader-card"><span class="spin"></span><span id="loaderText">Memproses...</span></div></div>
 
 <script>
-const SERVER_INITIAL_MODE = '<?= initialMode ?>';
-const SERVER_UPLOAD_TOKEN = '<?= initialUploadToken ?>';
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const SERVER_INITIAL_MODE = URL_PARAMS.get('mode') || 'staff';
+const SERVER_UPLOAD_TOKEN = URL_PARAMS.get('upload') || '';
+const FRONTEND_BASE_URL = window.location.origin + window.location.pathname;
 
 const PURPOSES = [
   {id:'telefon',name:'Pengemaskinian Nombor Telefon',group:'Pengemaskinian Maklumat'},
@@ -56,7 +57,7 @@ const PURPOSES = [
   {id:'lain',name:'Lain-lain Urusan',group:'Lain-lain'}
 ];
 const STATUS={draft:{label:'Draf',cls:'s-draft'},new:{label:'Baharu',cls:'s-new'},review:{label:'Dalam Semakan',cls:'s-review'},incomplete:{label:'Dokumen Tidak Lengkap',cls:'s-incomplete'},done:{label:'Selesai',cls:'s-done'},reject:{label:'Ditolak',cls:'s-reject'}};
-let CONFIG={webAppUrl:'https://script.google.com/macros/s/AKfycbzmhN2oSMT8ZYUj-H_Wf9d3ci1U5TRsPOpw-tPyQcBRWFy_8zzURVAx1OwPiw-A5lHUJw/exec',maxFileBytes:4*1024*1024,maxFiles:5,hybridMinutes:120};
+let CONFIG={apiUrl:'https://script.google.com/macros/s/AKfycbzmhN2oSMT8ZYUj-H_Wf9d3ci1U5TRsPOpw-tPyQcBRWFy_8zzURVAx1OwPiw-A5lHUJw/exec',maxFileBytes:4*1024*1024,maxFiles:5,hybridMinutes:120};
 let STAFF={token:sessionStorage.getItem('pkpj_staff_token')||'',session:null};
 let PUBLIC_STATE={purpose:'',docs:[]};
 let CURRENT_CASES=[];
@@ -69,13 +70,24 @@ function statusHTML(s){const o=STATUS[s]||STATUS.new;return `<span class="status
 function showLoader(text='Memproses...'){document.getElementById('loaderText').textContent=text;document.getElementById('loader').classList.remove('hidden')}
 function hideLoader(){document.getElementById('loader').classList.add('hidden')}
 function errMsg(e){return (e&&e.message)?e.message:String(e||'Ralat tidak diketahui.')}
-function gas(name,...args){return new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args)})}
-function appUrl(params={}){const base=CONFIG.webAppUrl||location.href.split('?')[0];const u=new URL(base);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));return u.toString()}
+async function gas(name,...args){
+  const res=await fetch(CONFIG.apiUrl,{
+    method:'POST',
+    redirect:'follow',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({action:name,args})
+  });
+  if(!res.ok)throw new Error('API tidak dapat dihubungi. HTTP '+res.status);
+  const out=await res.json();
+  if(!out.success)throw new Error(out.error||'Ralat API tidak diketahui.');
+  return out.data;
+}
+function appUrl(params={}){const u=new URL(FRONTEND_BASE_URL);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));return u.toString()}
 function go(params={}){location.href=appUrl(params)}
 function handleSessionError(e){const m=errMsg(e);if(/sesi|log masuk/i.test(m)){sessionStorage.removeItem('pkpj_staff_token');STAFF={token:'',session:null};alert(m);renderLogin();return true}return false}
 
 async function boot(){
-  try{CONFIG={...CONFIG,...await gas('getClientConfig')}}catch(e){console.error(e)}
+  try{const cfg=await gas('getClientConfig');CONFIG={...CONFIG,...cfg,apiUrl:CONFIG.apiUrl}}catch(e){console.error('API config:',e)}
   if(SERVER_UPLOAD_TOKEN){return renderHybridUpload(SERVER_UPLOAD_TOKEN)}
   if(SERVER_INITIAL_MODE==='public')return renderPublic();
   if(STAFF.token){
