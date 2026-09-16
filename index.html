@@ -56,7 +56,7 @@ const PURPOSES = [
   {id:'lain',name:'Lain-lain Urusan',group:'Lain-lain'}
 ];
 const STATUS={draft:{label:'Draf',cls:'s-draft'},new:{label:'Baharu',cls:'s-new'},review:{label:'Dalam Semakan',cls:'s-review'},incomplete:{label:'Dokumen Tidak Lengkap',cls:'s-incomplete'},done:{label:'Selesai',cls:'s-done'},reject:{label:'Ditolak',cls:'s-reject'}};
-let CONFIG={webAppUrl:'',maxFileBytes:4*1024*1024,maxFiles:5,hybridMinutes:120};
+let CONFIG={webAppUrl:'https://script.google.com/macros/s/AKfycbzmhN2oSMT8ZYUj-H_Wf9d3ci1U5TRsPOpw-tPyQcBRWFy_8zzURVAx1OwPiw-A5lHUJw/exec',maxFileBytes:4*1024*1024,maxFiles:5,hybridMinutes:120};
 let STAFF={token:sessionStorage.getItem('pkpj_staff_token')||'',session:null};
 let PUBLIC_STATE={purpose:'',docs:[]};
 let CURRENT_CASES=[];
