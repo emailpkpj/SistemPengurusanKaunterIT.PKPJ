@@ -1,860 +1,134 @@
-/**
- * ============================================================================
- * e-KAUNTER PKPJ - BACKEND GOOGLE APPS SCRIPT (GITHUB + NO STAFF LOGIN)
- * ============================================================================
- * Frontend : GitHub Pages (index.html)
- * Backend  : Google Apps Script Web App API
- * Database : Google Sheet sedia ada
- * Dokumen  : Google Drive private
- *
- * PENTING:
- * - Portal staff TIDAK menggunakan login/PIN mengikut keperluan semasa.
- * - Nama Pegawai Aktif dihantar oleh frontend untuk tujuan audit.
- * - Jangan gunakan fungsi padam rekod. Rekod audit dikekalkan.
- * ============================================================================
- */
-
-const APP = {
-  NAME: 'e-Kaunter PKPJ',
-  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzmhN2oSMT8ZYUj-H_Wf9d3ci1U5TRsPOpw-tPyQcBRWFy_8zzURVAx1OwPiw-A5lHUJw/exec',
-  SPREADSHEET_ID: '1o7iChc2zBLK7-X5fcDzbXxm-jmdl-zYo3EJSC7VfQOI',
-  SPREADSHEET_URL: 'https://docs.google.com/spreadsheets/d/1o7iChc2zBLK7-X5fcDzbXxm-jmdl-zYo3EJSC7VfQOI/edit?gid=0#gid=0',
-  ROOT_FOLDER: 'e-Kaunter PKPJ - Dokumen',
-  SHEET_CASES: 'CASES',
-  SHEET_DOCS: 'DOCUMENTS',
-  SHEET_AUDIT: 'AUDIT',
-  SHEET_SETTINGS: 'SETTINGS',
-  HYBRID_EXPIRE_MINUTES: 120,
-  MAX_FILE_BYTES: 4 * 1024 * 1024,
-  MAX_FILES_PER_SUBMISSION: 5,
-  TIMEZONE: 'Asia/Kuala_Lumpur'
-};
-
-const CASE_HEADERS = [
-  'id','ref','createdAt','updatedAt','source','sourceLabel','staffHelper',
-  'purpose','ic','name','phone','appNo','oldValue','newValue','note','status',
-  'assignedTo','officerNote','systemUpdated','hybridToken','hybridExpiresAt',
-  'completedAt','completedBy','lastActionBy'
-];
-
-const DOC_HEADERS = [
-  'docId','caseId','ref','uploadedAt','uploadedBy','fileName','mimeType','size',
-  'driveFileId','driveUrl'
-];
-
-const AUDIT_HEADERS = ['auditId','caseId','ref','time','actor','action','text'];
-const SETTINGS_HEADERS = ['key','value'];
-
-const STATUS_LABELS = {
-  new: 'Baharu',
-  review: 'Dalam Semakan',
-  incomplete: 'Dokumen Tidak Lengkap',
-  updating: 'Sedang Dikemaskini',
-  done: 'Selesai',
-  reject: 'Ditolak'
-};
-
-/* =============================== WEB API =============================== */
-
-function doGet() {
-  return jsonOutput_({
-    ok: true,
-    service: APP.NAME + ' API',
-    message: 'API e-Kaunter PKPJ aktif.',
-    time: new Date().toISOString()
-  });
-}
-
-function doPost(e) {
-  try {
-    const body = parseRequestBody_(e);
-    const action = clean_(body.action);
-    const args = Array.isArray(body.args) ? body.args : [];
-    const allowed = {
-      getClientConfig,
-      submitPublicCase,
-      getPublicCaseStatus,
-      getHybridCaseInfo,
-      submitHybridDocuments,
-      createStaffCase,
-      getDashboardData,
-      listCases,
-      getCaseDetail,
-      takeCase,
-      refreshHybridToken,
-      saveCaseAction,
-      completeCase,
-      reopenCase,
-      addStaffDocuments,
-      searchAudit,
-      getReportData
-    };
-
-    if (!action || !allowed[action]) throw new Error('Tindakan API tidak sah.');
-    const result = allowed[action].apply(null, args);
-    return jsonOutput_({ success: true, data: result });
-  } catch (err) {
-    return jsonOutput_({
-      success: false,
-      error: err && err.message ? err.message : String(err)
-    });
-  }
-}
-
-function parseRequestBody_(e) {
-  if (!e || !e.postData || !e.postData.contents) return {};
-  try {
-    return JSON.parse(e.postData.contents);
-  } catch (err) {
-    throw new Error('Format permintaan API tidak sah.');
-  }
-}
-
-function jsonOutput_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/* =============================== SETUP =============================== */
-
-function setupSystem() {
-  const props = PropertiesService.getScriptProperties();
-  const ss = SpreadsheetApp.openById(APP.SPREADSHEET_ID);
-  props.setProperty('DB_SPREADSHEET_ID', APP.SPREADSHEET_ID);
-
-  ensureSheetSchema_(ss, APP.SHEET_CASES, CASE_HEADERS);
-  ensureSheetSchema_(ss, APP.SHEET_DOCS, DOC_HEADERS);
-  ensureSheetSchema_(ss, APP.SHEET_AUDIT, AUDIT_HEADERS);
-  ensureSheetSchema_(ss, APP.SHEET_SETTINGS, SETTINGS_HEADERS);
-
-  let folderId = props.getProperty('ROOT_FOLDER_ID');
-  if (!folderId) {
-    const found = DriveApp.getFoldersByName(APP.ROOT_FOLDER);
-    const folder = found.hasNext() ? found.next() : DriveApp.createFolder(APP.ROOT_FOLDER);
-    folderId = folder.getId();
-    props.setProperty('ROOT_FOLDER_ID', folderId);
-  }
-
-  setSetting_('SYSTEM_VERSION', '3.0-NOLOGIN');
-  setSetting_('LAST_SETUP_AT', new Date().toISOString());
-
-  return {
-    ok: true,
-    spreadsheetId: ss.getId(),
-    spreadsheetUrl: ss.getUrl(),
-    rootFolderId: folderId,
-    webAppUrl: APP.WEB_APP_URL
-  };
-}
-
-function getClientConfig() {
-  ensureSystem_();
-  return {
-    ok: true,
-    systemName: APP.NAME,
-    apiUrl: APP.WEB_APP_URL,
-    maxFileBytes: APP.MAX_FILE_BYTES,
-    maxFiles: APP.MAX_FILES_PER_SUBMISSION,
-    hybridMinutes: APP.HYBRID_EXPIRE_MINUTES,
-    statuses: STATUS_LABELS
-  };
-}
-
-/* ============================== PUBLIC =============================== */
-
-function submitPublicCase(payload) {
-  ensureSystem_();
-  validateCasePayload_(payload);
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const now = new Date();
-    const c = buildCase_(payload, {
-      source: 'self',
-      sourceLabel: 'Self-Service Pemohon',
-      staffHelper: ''
-    }, now);
-
-    appendCase_(c);
-    appendAudit_(c.id, c.ref, 'Pemohon', 'CREATE', 'Kes diwujudkan melalui Portal Awam.');
-
-    const docs = saveDocuments_(c, payload.docs || [], 'Pemohon');
-    if (docs.length) {
-      appendAudit_(c.id, c.ref, 'Pemohon', 'UPLOAD', docs.length + ' dokumen dimuat naik bersama permohonan.');
-    }
-    appendAudit_(c.id, c.ref, 'Pemohon', 'SUBMIT', 'Maklumat dihantar untuk semakan PKPJ.');
-
-    return {
-      ok: true,
-      id: c.id,
-      ref: c.ref,
-      createdAt: c.createdAt,
-      openCasesForIC: countOpenCasesByIC_(c.ic)
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function getPublicCaseStatus(ref, ic) {
-  ensureSystem_();
-  const refClean = clean_(ref).toUpperCase();
-  const icClean = cleanIC_(ic);
-  if (!refClean || !icClean) throw new Error('No. rujukan dan No. Kad Pengenalan diperlukan.');
-
-  const c = getAllCases_().find(x => String(x.ref).toUpperCase() === refClean && cleanIC_(x.ic) === icClean);
-  if (!c) throw new Error('Rekod tidak dijumpai. Sila semak No. Rujukan dan No. Kad Pengenalan.');
-
-  return {
-    ok: true,
-    case: {
-      ref: c.ref,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt,
-      purpose: c.purpose,
-      status: c.status,
-      statusLabel: STATUS_LABELS[c.status] || c.status,
-      name: maskName_(c.name),
-      systemUpdated: !!c.systemUpdated
-    }
-  };
-}
-
-function getHybridCaseInfo(hybridToken) {
-  ensureSystem_();
-  const c = requireValidHybridCase_(hybridToken);
-  return {
-    ok: true,
-    case: {
-      id: c.id,
-      ref: c.ref,
-      name: c.name,
-      icMasked: maskIC_(c.ic),
-      status: c.status,
-      expiresAt: c.hybridExpiresAt
-    }
-  };
-}
-
-function submitHybridDocuments(hybridToken, docs) {
-  ensureSystem_();
-  const c = requireValidHybridCase_(hybridToken);
-  if (['done','reject'].indexOf(c.status) >= 0) throw new Error('Kes ini telah ditutup.');
-
-  const saved = saveDocuments_(c, docs || [], 'Pemohon');
-  if (!saved.length) throw new Error('Sila pilih sekurang-kurangnya satu dokumen.');
-
-  touchCase_(c.id, 'Pemohon');
-  appendAudit_(c.id, c.ref, 'Pemohon', 'UPLOAD', saved.length + ' dokumen dimuat naik melalui QR Hybrid.');
-  return { ok: true, count: saved.length, ref: c.ref };
-}
-
-/* =============================== STAFF =============================== */
-
-function createStaffCase(staffName, payload, isHybrid) {
-  ensureSystem_();
-  const actor = staffActor_(staffName);
-  validateCasePayload_(payload);
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const now = new Date();
-    const hybrid = !!isHybrid;
-    const c = buildCase_(payload, {
-      source: hybrid ? 'hybrid' : 'assisted',
-      sourceLabel: hybrid ? 'Hybrid' : 'Staff Bantu Isi',
-      staffHelper: actor
-    }, now);
-
-    c.assignedTo = actor;
-    c.lastActionBy = actor;
-    appendCase_(c);
-    appendAudit_(c.id, c.ref, actor, 'CREATE', 'Kes diwujudkan melalui ' + c.sourceLabel + '.');
-
-    if (!hybrid) {
-      const docs = saveDocuments_(c, payload.docs || [], actor);
-      if (docs.length) appendAudit_(c.id, c.ref, actor, 'UPLOAD', docs.length + ' dokumen dilampirkan oleh pegawai.');
-    }
-
-    return {
-      ok: true,
-      id: c.id,
-      ref: c.ref,
-      hybridToken: hybrid ? c.hybridToken : '',
-      hybridExpiresAt: hybrid ? c.hybridExpiresAt : ''
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function takeCase(staffName, caseId) {
-  const actor = staffActor_(staffName);
-  const c = requireCase_(caseId);
-  const previous = clean_(c.assignedTo);
-
-  updateCaseFields_(c.id, {
-    assignedTo: actor,
-    status: c.status === 'new' ? 'review' : c.status,
-    updatedAt: new Date().toISOString(),
-    lastActionBy: actor
-  });
-
-  appendAudit_(c.id, c.ref, actor, 'ASSIGN', previous && previous !== actor
-    ? 'Kes diambil alih daripada ' + previous + '.'
-    : 'Kes diambil untuk tindakan.');
-  return { ok: true };
-}
-
-function refreshHybridToken(staffName, caseId) {
-  const actor = staffActor_(staffName);
-  const c = requireCase_(caseId);
-  if (['done','reject'].indexOf(c.status) >= 0) throw new Error('Kes yang telah ditutup tidak boleh menjana QR upload.');
-
-  const newToken = randomToken_();
-  const expires = new Date(Date.now() + APP.HYBRID_EXPIRE_MINUTES * 60000).toISOString();
-  updateCaseFields_(c.id, {
-    hybridToken: newToken,
-    hybridExpiresAt: expires,
-    updatedAt: new Date().toISOString(),
-    lastActionBy: actor
-  });
-  appendAudit_(c.id, c.ref, actor, 'QR', 'QR upload dokumen baharu dijana.');
-  return { ok: true, hybridToken: newToken, hybridExpiresAt: expires };
-}
-
-function addStaffDocuments(staffName, caseId, docs) {
-  const actor = staffActor_(staffName);
-  const c = requireCase_(caseId);
-  if (['done','reject'].indexOf(c.status) >= 0) throw new Error('Kes telah ditutup. Buka semula kes sebelum menambah dokumen.');
-
-  const saved = saveDocuments_(c, docs || [], actor);
-  if (!saved.length) throw new Error('Sila pilih sekurang-kurangnya satu dokumen.');
-  touchCase_(c.id, actor);
-  appendAudit_(c.id, c.ref, actor, 'UPLOAD', saved.length + ' dokumen tambahan dimuat naik oleh pegawai.');
-  return { ok: true, count: saved.length };
-}
-
-function saveCaseAction(staffName, action) {
-  const actor = staffActor_(staffName);
-  const a = action || {};
-  const c = requireCase_(a.caseId);
-  const newStatus = clean_(a.status || c.status);
-  if (!STATUS_LABELS[newStatus]) throw new Error('Status kes tidak sah.');
-
-  const assigned = clean_(a.assignedTo) || c.assignedTo || actor;
-  const systemUpdated = a.systemUpdated ? 'TRUE' : 'FALSE';
-  const fields = {
-    assignedTo: assigned,
-    status: newStatus,
-    officerNote: clean_(a.officerNote),
-    systemUpdated: systemUpdated,
-    updatedAt: new Date().toISOString(),
-    lastActionBy: actor
-  };
-
-  if (newStatus !== 'done') {
-    fields.completedAt = '';
-    fields.completedBy = '';
-  }
-  updateCaseFields_(c.id, fields);
-
-  if (c.status !== newStatus) {
-    appendAudit_(c.id, c.ref, actor, 'STATUS', 'Status ditukar daripada "' + statusLabel_(c.status) + '" kepada "' + statusLabel_(newStatus) + '".');
-  }
-  if (!!c.systemUpdated !== (systemUpdated === 'TRUE')) {
-    appendAudit_(c.id, c.ref, actor, 'SYSTEM', systemUpdated === 'TRUE'
-      ? 'Maklumat ditandakan telah dikemaskini dalam Sistem Perumahan Johor.'
-      : 'Tanda kemas kini Sistem Perumahan Johor dibatalkan.');
-  }
-  appendAudit_(c.id, c.ref, actor, 'NOTE', 'Tindakan/catatan pegawai disimpan.');
-  return { ok: true };
-}
-
-function completeCase(staffName, action) {
-  const actor = staffActor_(staffName);
-  const a = action || {};
-  const c = requireCase_(a.caseId);
-
-  updateCaseFields_(c.id, {
-    assignedTo: clean_(a.assignedTo) || c.assignedTo || actor,
-    officerNote: clean_(a.officerNote),
-    systemUpdated: a.systemUpdated ? 'TRUE' : 'FALSE',
-    status: 'done',
-    hybridToken: '',
-    hybridExpiresAt: '',
-    completedAt: new Date().toISOString(),
-    completedBy: actor,
-    updatedAt: new Date().toISOString(),
-    lastActionBy: actor
-  });
-
-  appendAudit_(c.id, c.ref, actor, 'COMPLETE', 'Kes ditandakan selesai.');
-  return { ok: true };
-}
-
-function reopenCase(staffName, caseId, reason) {
-  const actor = staffActor_(staffName);
-  const c = requireCase_(caseId);
-  if (['done','reject'].indexOf(c.status) < 0) throw new Error('Hanya kes selesai atau ditolak boleh dibuka semula.');
-
-  updateCaseFields_(c.id, {
-    status: 'review',
-    completedAt: '',
-    completedBy: '',
-    updatedAt: new Date().toISOString(),
-    lastActionBy: actor
-  });
-  appendAudit_(c.id, c.ref, actor, 'REOPEN', 'Kes dibuka semula.' + (clean_(reason) ? ' Sebab: ' + clean_(reason) : ''));
-  return { ok: true };
-}
-
-/* ============================ DASHBOARD/LIST ============================ */
-
-function getDashboardData() {
-  ensureSystem_();
-  const all = getAllCases_();
-  const today = dateKey_(new Date());
-  const todayCases = all.filter(c => dateKey_(new Date(c.createdAt)) === today);
-  const doneToday = all.filter(c => c.completedAt && dateKey_(new Date(c.completedAt)) === today);
-  const open = all.filter(c => ['new','review','incomplete','updating'].indexOf(c.status) >= 0);
-  const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
-
-  return {
-    ok: true,
-    summary: {
-      today: todayCases.length,
-      new: all.filter(c => c.status === 'new').length,
-      review: all.filter(c => c.status === 'review').length,
-      incomplete: all.filter(c => c.status === 'incomplete').length,
-      updating: all.filter(c => c.status === 'updating').length,
-      doneToday: doneToday.length,
-      open: open.length,
-      unassigned: open.filter(c => !clean_(c.assignedTo)).length,
-      aging: open.filter(c => new Date(c.createdAt).getTime() < threeDaysAgo).length
-    },
-    channelsToday: {
-      self: todayCases.filter(c => c.source === 'self').length,
-      assisted: todayCases.filter(c => c.source === 'assisted').length,
-      hybrid: todayCases.filter(c => c.source === 'hybrid').length
-    },
-    latest: all.sort(sortNewest_).slice(0, 10).map(sanitizeCaseList_)
-  };
-}
-
-function listCases(options) {
-  ensureSystem_();
-  const o = options || {};
-  let all = getAllCases_();
-
-  const q = clean_(o.q).toLowerCase();
-  if (q) {
-    all = all.filter(c => [c.ref,c.name,c.ic,c.phone,c.appNo,c.purpose,c.assignedTo]
-      .join(' ').toLowerCase().indexOf(q) >= 0);
-  }
-
-  if (clean_(o.filter) === 'review') all = all.filter(c => ['new','review','incomplete','updating'].indexOf(c.status) >= 0);
-  if (clean_(o.filter) === 'done') all = all.filter(c => c.status === 'done');
-  if (clean_(o.filter) === 'unassigned') all = all.filter(c => ['new','review','incomplete','updating'].indexOf(c.status) >= 0 && !clean_(c.assignedTo));
-  if (clean_(o.status)) all = all.filter(c => c.status === o.status);
-  if (clean_(o.source)) all = all.filter(c => c.source === o.source);
-  if (clean_(o.assignedTo)) all = all.filter(c => clean_(c.assignedTo).toLowerCase().indexOf(clean_(o.assignedTo).toLowerCase()) >= 0);
-  all = filterByDateRange_(all, o.dateFrom, o.dateTo, 'createdAt');
-
-  all.sort(sortNewest_);
-  return { ok: true, total: all.length, cases: all.map(sanitizeCaseList_) };
-}
-
-function getCaseDetail(caseId) {
-  const c = requireCase_(caseId);
-  c.docs = getDocsForCase_(c.id);
-  c.audit = getAuditForCase_(c.id);
-  c.history = getAllCases_()
-    .filter(x => cleanIC_(x.ic) === cleanIC_(c.ic) && x.id !== c.id)
-    .sort(sortNewest_)
-    .slice(0, 10)
-    .map(sanitizeCaseList_);
-  return { ok: true, case: c };
-}
-
-function searchAudit(query) {
-  ensureSystem_();
-  const q = clean_(query).toLowerCase();
-  if (!q) return { ok: true, cases: [] };
-  const all = getAllCases_().filter(c => [c.ref,c.ic,c.appNo,c.name,c.phone,c.assignedTo]
-    .join(' ').toLowerCase().indexOf(q) >= 0);
-  all.sort(sortNewest_);
-  return { ok: true, cases: all.map(sanitizeCaseList_) };
-}
-
-function getReportData(options) {
-  ensureSystem_();
-  const o = options || {};
-  let all = filterByDateRange_(getAllCases_(), o.dateFrom, o.dateTo, 'createdAt');
-
-  const purposeCounts = {};
-  const sourceCounts = { self: 0, assisted: 0, hybrid: 0 };
-  const statusCounts = { new:0, review:0, incomplete:0, updating:0, done:0, reject:0 };
-  const staffCounts = {};
-  const dailyCounts = {};
-
-  all.forEach(c => {
-    purposeCounts[c.purpose] = (purposeCounts[c.purpose] || 0) + 1;
-    sourceCounts[c.source] = (sourceCounts[c.source] || 0) + 1;
-    statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
-    if (clean_(c.assignedTo)) staffCounts[c.assignedTo] = (staffCounts[c.assignedTo] || 0) + 1;
-    const d = dateKey_(new Date(c.createdAt));
-    dailyCounts[d] = (dailyCounts[d] || 0) + 1;
-  });
-
-  return {
-    ok: true,
-    total: all.length,
-    purposeCounts,
-    sourceCounts,
-    statusCounts,
-    staffCounts,
-    dailyCounts,
-    cases: all.sort(sortNewest_).map(sanitizeCaseList_)
-  };
-}
-
-/* =============================== HELPERS =============================== */
-
-function ensureSystem_() {
-  const props = PropertiesService.getScriptProperties();
-  if (!props.getProperty('DB_SPREADSHEET_ID') || !props.getProperty('ROOT_FOLDER_ID')) setupSystem();
-}
-
-function getDB_() {
-  return SpreadsheetApp.openById(APP.SPREADSHEET_ID);
-}
-
-function getSheet_(name) {
-  const sh = getDB_().getSheetByName(name);
-  if (!sh) throw new Error('Sheet ' + name + ' belum wujud. Jalankan setupSystem().');
-  return sh;
-}
-
-function ensureSheetSchema_(ss, name, headers) {
-  let sh = ss.getSheetByName(name);
-  if (!sh) sh = ss.insertSheet(name);
-
-  if (sh.getLastRow() === 0) {
-    sh.getRange(1,1,1,headers.length).setValues([headers]);
-  } else {
-    const currentLastCol = Math.max(1, sh.getLastColumn());
-    const current = sh.getRange(1,1,1,currentLastCol).getValues()[0].map(String);
-    const missing = headers.filter(h => current.indexOf(h) < 0);
-    if (missing.length) sh.getRange(1,current.length + 1,1,missing.length).setValues([missing]);
-  }
-
-  const finalCols = sh.getLastColumn();
-  sh.setFrozenRows(1);
-  sh.getRange(1,1,1,finalCols)
-    .setFontWeight('bold')
-    .setBackground('#0b2a4a')
-    .setFontColor('#ffffff');
-  return sh;
-}
-
-function setSetting_(key, value) {
-  const sh = getSheet_(APP.SHEET_SETTINGS);
-  const data = sh.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === key) {
-      sh.getRange(i + 1, 2).setValue(value);
-      return;
-    }
-  }
-  sh.appendRow([key, value]);
-}
-
-function validateCasePayload_(p) {
-  if (!p) throw new Error('Maklumat tidak diterima.');
-  if (!cleanIC_(p.ic)) throw new Error('No. Kad Pengenalan diperlukan.');
-  if (!clean_(p.name)) throw new Error('Nama diperlukan.');
-  if (!clean_(p.phone)) throw new Error('No. Telefon diperlukan.');
-  if (!clean_(p.purpose)) throw new Error('Tujuan urusan diperlukan.');
-  validateDocs_(p.docs || []);
-}
-
-function validateDocs_(docs) {
-  if (!Array.isArray(docs)) return;
-  if (docs.length > APP.MAX_FILES_PER_SUBMISSION) throw new Error('Maksimum ' + APP.MAX_FILES_PER_SUBMISSION + ' dokumen bagi satu penghantaran.');
-  docs.forEach(d => {
-    const size = Number(d.size || 0);
-    if (size > APP.MAX_FILE_BYTES) throw new Error('Fail ' + clean_(d.name) + ' melebihi had saiz.');
-    const mime = clean_(d.mimeType).toLowerCase();
-    if (['application/pdf','image/jpeg','image/png'].indexOf(mime) < 0) throw new Error('Format fail tidak dibenarkan: ' + clean_(d.name));
-    if (!d.base64) throw new Error('Data fail tidak lengkap: ' + clean_(d.name));
-  });
-}
-
-function buildCase_(p, source, now) {
-  return {
-    id: Utilities.getUuid(),
-    ref: nextRef_(now),
-    createdAt: now.toISOString(),
-    updatedAt: now.toISOString(),
-    source: source.source,
-    sourceLabel: source.sourceLabel,
-    staffHelper: source.staffHelper || '',
-    purpose: clean_(p.purpose),
-    ic: cleanIC_(p.ic),
-    name: clean_(p.name),
-    phone: clean_(p.phone),
-    appNo: clean_(p.appNo),
-    oldValue: clean_(p.oldValue),
-    newValue: clean_(p.newValue),
-    note: clean_(p.note),
-    status: 'new',
-    assignedTo: '',
-    officerNote: '',
-    systemUpdated: 'FALSE',
-    hybridToken: randomToken_(),
-    hybridExpiresAt: new Date(now.getTime() + APP.HYBRID_EXPIRE_MINUTES * 60000).toISOString(),
-    completedAt: '',
-    completedBy: '',
-    lastActionBy: source.staffHelper || ''
-  };
-}
-
-function appendCase_(c) {
-  const sh = getSheet_(APP.SHEET_CASES);
-  const headers = getHeaders_(sh);
-  sh.appendRow(headers.map(h => c[h] == null ? '' : c[h]));
-}
-
-function appendAudit_(caseId, ref, actor, action, text) {
-  const sh = getSheet_(APP.SHEET_AUDIT);
-  const rec = {
-    auditId: Utilities.getUuid(),
-    caseId: caseId,
-    ref: ref,
-    time: new Date().toISOString(),
-    actor: actor || 'Sistem',
-    action: action || 'INFO',
-    text: text || ''
-  };
-  const headers = getHeaders_(sh);
-  sh.appendRow(headers.map(h => rec[h] == null ? '' : rec[h]));
-}
-
-function nextRef_(d) {
-  const keyDate = Utilities.formatDate(d, APP.TIMEZONE, 'yyyyMMdd');
-  const key = 'SEQ_' + keyDate;
-  const props = PropertiesService.getScriptProperties();
-  const n = Number(props.getProperty(key) || '0') + 1;
-  props.setProperty(key, String(n));
-  return 'PKPJ-KTR-' + keyDate + '-' + String(n).padStart(4, '0');
-}
-
-function getAllCases_() {
-  const sh = getSheet_(APP.SHEET_CASES);
-  if (sh.getLastRow() < 2) return [];
-  const headers = getHeaders_(sh);
-  const vals = sh.getRange(2,1,sh.getLastRow()-1,headers.length).getValues();
-  return vals.filter(r => r[0]).map(r => rowToObject_(headers, r));
-}
-
-function getCaseRowObject_(caseId) {
-  const sh = getSheet_(APP.SHEET_CASES);
-  if (sh.getLastRow() < 2) return null;
-  const headers = getHeaders_(sh);
-  const vals = sh.getRange(2,1,sh.getLastRow()-1,headers.length).getValues();
-  const idCol = headers.indexOf('id');
-  for (let i = 0; i < vals.length; i++) {
-    if (String(vals[i][idCol]) === String(caseId)) {
-      const o = rowToObject_(headers, vals[i]);
-      o._row = i + 2;
-      return o;
-    }
-  }
-  return null;
-}
-
-function requireCase_(caseId) {
-  const c = getCaseRowObject_(caseId);
-  if (!c) throw new Error('Kes tidak dijumpai.');
-  return c;
-}
-
-function requireValidHybridCase_(hybridToken) {
-  const tk = clean_(hybridToken);
-  if (!tk) throw new Error('Token QR tidak sah.');
-  const c = getAllCases_().find(x => String(x.hybridToken) === tk);
-  if (!c) throw new Error('Pautan QR tidak sah atau tidak lagi tersedia.');
-  const expiry = new Date(c.hybridExpiresAt);
-  if (isNaN(expiry.getTime()) || expiry.getTime() < Date.now()) throw new Error('QR ini telah tamat tempoh. Sila dapatkan QR baharu daripada pegawai kaunter.');
-  return c;
-}
-
-function updateCaseFields_(caseId, fields) {
-  const sh = getSheet_(APP.SHEET_CASES);
-  const c = requireCase_(caseId);
-  const headers = getHeaders_(sh);
-  const map = {};
-  headers.forEach((h,i) => map[h] = i + 1);
-  Object.keys(fields).forEach(k => {
-    if (map[k]) sh.getRange(c._row, map[k]).setValue(fields[k]);
-  });
-}
-
-function touchCase_(caseId, actor) {
-  updateCaseFields_(caseId, {
-    updatedAt: new Date().toISOString(),
-    lastActionBy: clean_(actor)
-  });
-}
-
-function getDocsForCase_(caseId) {
-  const sh = getSheet_(APP.SHEET_DOCS);
-  if (sh.getLastRow() < 2) return [];
-  const headers = getHeaders_(sh);
-  const vals = sh.getRange(2,1,sh.getLastRow()-1,headers.length).getValues();
-  return vals.map(r => rowToObject_(headers,r)).filter(x => String(x.caseId) === String(caseId));
-}
-
-function getAuditForCase_(caseId) {
-  const sh = getSheet_(APP.SHEET_AUDIT);
-  if (sh.getLastRow() < 2) return [];
-  const headers = getHeaders_(sh);
-  const vals = sh.getRange(2,1,sh.getLastRow()-1,headers.length).getValues();
-  return vals.map(r => rowToObject_(headers,r)).filter(x => String(x.caseId) === String(caseId));
-}
-
-function saveDocuments_(c, docs, uploadedBy) {
-  validateDocs_(docs);
-  if (!docs || !docs.length) return [];
-
-  const rootId = PropertiesService.getScriptProperties().getProperty('ROOT_FOLDER_ID');
-  if (!rootId) throw new Error('Folder dokumen belum disediakan. Jalankan setupSystem().');
-  const root = DriveApp.getFolderById(rootId);
-  const safeRef = c.ref.replace(/[^A-Za-z0-9_-]/g, '_');
-  const folders = root.getFoldersByName(safeRef);
-  const caseFolder = folders.hasNext() ? folders.next() : root.createFolder(safeRef);
-  const sh = getSheet_(APP.SHEET_DOCS);
-  const headers = getHeaders_(sh);
-  const out = [];
-
-  docs.forEach(d => {
-    const bytes = Utilities.base64Decode(d.base64);
-    const blob = Utilities.newBlob(bytes, d.mimeType, sanitizeFilename_(d.name));
-    const file = caseFolder.createFile(blob);
-    const rec = {
-      docId: Utilities.getUuid(),
-      caseId: c.id,
-      ref: c.ref,
-      uploadedAt: new Date().toISOString(),
-      uploadedBy: uploadedBy || 'Pemohon',
-      fileName: file.getName(),
-      mimeType: d.mimeType,
-      size: d.size || bytes.length,
-      driveFileId: file.getId(),
-      driveUrl: file.getUrl()
-    };
-    sh.appendRow(headers.map(h => rec[h] == null ? '' : rec[h]));
-    out.push(rec);
-  });
-  return out;
-}
-
-function rowToObject_(headers, row) {
-  const o = {};
-  headers.forEach((h,i) => o[h] = row[i] == null ? '' : row[i]);
-  o.systemUpdated = String(o.systemUpdated).toUpperCase() === 'TRUE';
-  return o;
-}
-
-function sanitizeCaseList_(c) {
-  return {
-    id: c.id,
-    ref: c.ref,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-    completedAt: c.completedAt,
-    source: c.source,
-    sourceLabel: c.sourceLabel,
-    staffHelper: c.staffHelper,
-    purpose: c.purpose,
-    ic: c.ic,
-    name: c.name,
-    phone: c.phone,
-    appNo: c.appNo,
-    status: c.status,
-    assignedTo: c.assignedTo,
-    lastActionBy: c.lastActionBy,
-    systemUpdated: !!c.systemUpdated
-  };
-}
-
-function filterByDateRange_(list, from, to, field) {
-  const start = clean_(from) ? new Date(clean_(from) + 'T00:00:00+08:00').getTime() : null;
-  const end = clean_(to) ? new Date(clean_(to) + 'T23:59:59+08:00').getTime() : null;
-  return list.filter(c => {
-    const t = new Date(c[field]).getTime();
-    if (start && t < start) return false;
-    if (end && t > end) return false;
-    return true;
-  });
-}
-
-function countOpenCasesByIC_(ic) {
-  const key = cleanIC_(ic);
-  return getAllCases_().filter(c => cleanIC_(c.ic) === key && ['new','review','incomplete','updating'].indexOf(c.status) >= 0).length;
-}
-
-function getHeaders_(sh) {
-  if (sh.getLastColumn() < 1) return [];
-  return sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String).filter(Boolean);
-}
-
-function staffActor_(name) {
-  const n = clean_(name);
-  if (!n) throw new Error('Sila tetapkan Nama Pegawai Aktif terlebih dahulu.');
-  return n.substring(0, 100);
-}
-
-function statusLabel_(s) {
-  return STATUS_LABELS[s] || s || '-';
-}
-
-function clean_(v) {
-  return String(v == null ? '' : v).trim();
-}
-
-function cleanIC_(v) {
-  return clean_(v).replace(/\s+/g, '').replace(/-/g, '');
-}
-
-function maskIC_(v) {
-  const s = cleanIC_(v);
-  if (s.length < 6) return '******';
-  return s.slice(0,6) + '******';
-}
-
-function maskName_(v) {
-  const parts = clean_(v).split(/\s+/).filter(Boolean);
-  if (!parts.length) return '-';
-  return parts.map((p,i) => i === 0 ? p : p.charAt(0) + '***').join(' ');
-}
-
-function randomToken_() {
-  return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').toUpperCase();
-}
-
-function sanitizeFilename_(name) {
-  const n = clean_(name || 'dokumen').replace(/[\\/:*?"<>|]/g, '_');
-  return n || 'dokumen';
-}
-
-function dateKey_(d) {
-  return Utilities.formatDate(d, APP.TIMEZONE, 'yyyy-MM-dd');
-}
-
-function sortNewest_(a,b) {
-  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-}
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>e-Kaunter PKPJ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--navy:#0a2949;--navy2:#113e6b;--blue:#1769aa;--blue2:#0e5790;--bg:#f3f6fa;--card:#fff;--text:#172033;--muted:#6b7788;--line:#dde6ef;--green:#16885a;--orange:#e89400;--red:#c83b36;--purple:#6d4bc2;--cyan:#1b8394;--shadow:0 12px 30px rgba(13,42,74,.09);--radius:17px}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}h1,h2,h3,p{margin-top:0}.muted{color:var(--muted)}.small{font-size:12px}.tiny{font-size:11px}.strong{font-weight:900}
+.topbar{height:74px;background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:40;box-shadow:0 8px 20px rgba(0,0,0,.12)}.brand{display:flex;align-items:center;gap:12px}.logo{width:46px;height:46px;border-radius:13px;background:#fff;color:var(--navy);display:grid;place-items:center;font-weight:950}.brand-title{font-weight:950;font-size:19px}.brand-sub{font-size:11px;opacity:.78;margin-top:2px}.top-actions{display:flex;align-items:center;gap:8px}.pill{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:8px 11px;font-size:12px}.pill-btn:hover{background:rgba(255,255,255,.18)}
+.layout{display:grid;grid-template-columns:255px 1fr;min-height:calc(100vh - 74px)}.sidebar{background:#fff;border-right:1px solid var(--line);padding:18px 13px;position:sticky;top:74px;height:calc(100vh - 74px);overflow:auto}.content{padding:24px;max-width:1540px;width:100%;margin:0 auto}.side-title{font-size:10px;letter-spacing:.13em;color:#9aa7b7;font-weight:950;padding:0 10px 7px}.nav{width:100%;border:0;background:transparent;text-align:left;padding:11px 12px;border-radius:11px;color:#415166;font-weight:850;display:flex;gap:10px;align-items:center;margin:3px 0}.nav:hover{background:#f1f5f9}.nav.active{background:#eaf3fb;color:var(--navy);box-shadow:inset 3px 0 0 var(--blue)}.side-note{margin-top:17px;padding:12px;background:#f8fafc;border:1px solid var(--line);border-radius:11px;font-size:11px;color:#6f7f91;line-height:1.5}
+.page-title{font-size:27px;margin-bottom:4px}.page-sub{color:var(--muted);margin-bottom:20px}.grid{display:grid;gap:15px}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-5{grid-template-columns:repeat(5,minmax(0,1fr))}.card{background:#fff;border:1px solid #e5edf4;border-radius:var(--radius);box-shadow:var(--shadow);padding:19px}.card-title{font-weight:950;font-size:15px;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between;gap:10px}.kpi{background:#fff;border:1px solid #e5edf5;border-radius:15px;padding:17px;box-shadow:0 7px 20px rgba(13,42,74,.06)}.kpi .label{font-size:11px;color:#6d7b8d;font-weight:850}.kpi .value{font-size:29px;font-weight:950;color:var(--navy);margin-top:6px}.kpi .hint{font-size:10px;color:#97a4b4;margin-top:3px}
+.btn{border:0;border-radius:11px;padding:10px 15px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.15s}.btn:hover{transform:translateY(-1px)}.btn-primary{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff}.btn-dark{background:var(--navy);color:#fff}.btn-green{background:var(--green);color:#fff}.btn-orange{background:#fff4df;color:#975d00;border:1px solid #f0d8a6}.btn-red{background:#feeceb;color:#a62d29;border:1px solid #f5cdca}.btn-light{background:#f0f4f8;color:var(--navy);border:1px solid #dce5ee}.btn-sm{padding:7px 10px;font-size:11px;border-radius:9px}.btn-block{width:100%}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.field{margin-bottom:13px}.field label{display:block;font-size:11px;color:#526173;font-weight:900;margin-bottom:6px}.req:after{content:" *";color:#d92d20}input,select,textarea{width:100%;border:1px solid #ced9e5;border-radius:10px;padding:10px 11px;background:#fff;color:#172033;outline:none}input:focus,select:focus,textarea:focus{border-color:#6ba4d3;box-shadow:0 0 0 3px rgba(23,105,170,.08)}textarea{min-height:86px;resize:vertical}input[type=file]{padding:8px;background:#f8fafc}.help{font-size:10px;color:#7b8797;margin-top:5px;line-height:1.45}.divider{height:1px;background:var(--line);margin:17px 0}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:13px}.grow{flex:1 1 220px}
+.status{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:950;white-space:nowrap}.s-new{background:#fff2d8;color:#976100}.s-review{background:#e7f1ff;color:#245da7}.s-incomplete{background:#f2eaff;color:#6d3eb4}.s-updating{background:#e0f5f7;color:#137180}.s-done{background:#e6f7ef;color:#14734a}.s-reject{background:#fde9e8;color:#ad2d28}
+.table-wrap{overflow:auto;max-height:650px;border:1px solid #e5ebf2;border-radius:13px}table{width:100%;border-collapse:collapse}th,td{padding:11px 9px;border-bottom:1px solid #edf1f5;text-align:left;font-size:11px;vertical-align:top}th{background:#f8fafc;color:#6b7788;font-weight:950;position:sticky;top:0;z-index:2}tr:hover td{background:#fbfdff}
+.notice{padding:12px 13px;border-radius:11px;background:#fff8e8;border:1px solid #f2deaa;color:#79580d;font-size:11px;line-height:1.5}.info{background:#edf6ff;border-color:#c9dfef;color:#285b80}.success{background:#e9f8f1;border-color:#c7e9d9;color:#166943}.danger{background:#fff0ef;border-color:#f3ceca;color:#9e302c}
+.public-wrap{min-height:100vh;background:linear-gradient(180deg,#e9f4ff 0,#f7faff 38%,#f3f6fa 100%);padding:23px}.public-shell{max-width:790px;margin:0 auto}.public-head{text-align:center;padding:18px 0}.public-logo{width:66px;height:66px;border-radius:19px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:950;margin:0 auto 12px}.public-title{font-size:27px;font-weight:950;color:var(--navy);margin-bottom:5px}.public-sub{color:#637286;line-height:1.5}.public-tabs{display:flex;justify-content:center;gap:8px;margin-bottom:15px}.choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.choice{padding:15px;border:1px solid #dbe5ef;background:#fff;border-radius:14px;text-align:left;transition:.15s}.choice:hover{border-color:#8fb8da}.choice.active{border-color:var(--blue);background:#edf6ff;box-shadow:0 0 0 3px rgba(23,105,170,.08)}.choice b{display:block;color:var(--navy);margin-bottom:3px}.choice span{font-size:10px;color:#708093}.success-box{text-align:center;padding:25px 16px}.check{width:68px;height:68px;border-radius:50%;background:#e8f8f0;color:#198754;display:grid;place-items:center;margin:0 auto 14px;font-size:32px;font-weight:950}.ref-box{background:#f4f8fc;border:1px dashed #9db6cb;border-radius:13px;padding:14px;margin:14px 0;font-size:20px;font-weight:950;color:var(--navy)}
+.case-head{display:flex;justify-content:space-between;align-items:flex-start;gap:13px;flex-wrap:wrap;margin-bottom:16px}.case-ref{font-size:24px;font-weight:950;color:var(--navy)}.kv{display:grid;grid-template-columns:170px 1fr;gap:8px 13px;font-size:12px}.kv .k{color:#6b7788;font-weight:800}.kv .v{font-weight:850;color:#26364a;word-break:break-word}.oldnew{display:grid;grid-template-columns:1fr 48px 1fr;gap:10px;align-items:center}.data-box{padding:13px;border:1px solid #dce5ee;border-radius:11px;background:#f9fbfd;min-height:70px;white-space:pre-wrap}.data-box b{display:block;font-size:10px;color:#6b7788;margin-bottom:5px}.arrow{text-align:center;font-size:20px;color:var(--blue);font-weight:950}.doc-list{display:grid;gap:7px}.doc{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 11px;border:1px solid #dfe7ef;border-radius:10px;background:#fafcfe}.doc-name{font-size:11px;font-weight:850;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:430px}.audit{border-left:3px solid #c8d8e8;padding-left:14px;margin-left:7px}.audit-item{position:relative;padding:0 0 15px 5px}.audit-item:before{content:"";position:absolute;left:-22px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--blue);border:3px solid #eaf3fb}.audit-time{font-size:9px;color:#94a3b8;margin-bottom:3px}.audit-text{font-size:11px;font-weight:800;color:#3b4a5c}.tag{display:inline-block;padding:4px 7px;background:#eef3f8;border-radius:999px;font-size:10px;font-weight:800;color:#53657a}
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,17,31,.58);z-index:100;display:grid;place-items:center;padding:18px}.modal{width:min(680px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:19px;box-shadow:0 22px 60px rgba(0,0,0,.28);padding:21px}.modal-head{display:flex;justify-content:space-between;gap:11px;align-items:flex-start}.modal-close{border:0;background:#eef2f7;border-radius:9px;width:33px;height:33px;font-weight:950;color:#526173}#qrBox{display:flex;justify-content:center;padding:17px;background:#fff;border-radius:13px;border:1px solid var(--line);width:max-content;margin:13px auto}.urlbox{font-size:10px;word-break:break-all;padding:9px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;color:#637286}
+.loader{position:fixed;inset:0;background:rgba(255,255,255,.8);z-index:200;display:grid;place-items:center}.loader-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px 22px;box-shadow:var(--shadow);font-weight:900;color:var(--navy)}.spin{display:inline-block;width:17px;height:17px;border:3px solid #d9e6f1;border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+.bar{height:8px;background:#edf2f7;border-radius:999px;overflow:hidden;margin-top:5px}.bar>div{height:100%;background:linear-gradient(90deg,#1769aa,#5aa7df)}
+@media(max-width:1100px){.grid-5{grid-template-columns:repeat(3,1fr)}}@media(max-width:950px){.layout{grid-template-columns:1fr}.sidebar{display:none}.content{padding:17px}.grid-4,.grid-5{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.grid-2,.grid-3,.grid-4,.grid-5,.choice-grid{grid-template-columns:1fr}.public-wrap{padding:13px}.topbar{padding:0 12px}.brand-sub{display:none}.content{padding:13px}.oldnew{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.kv{grid-template-columns:1fr}.page-title{font-size:22px}.doc-name{max-width:210px}.top-actions .pill:first-child{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="loader" class="loader hidden"><div class="loader-card"><span class="spin"></span><span id="loaderText">Memproses...</span></div></div>
+<script>
+const URL_PARAMS=new URLSearchParams(location.search);
+const MODE=URL_PARAMS.get('mode')||'staff';
+const UPLOAD_TOKEN=URL_PARAMS.get('upload')||'';
+const FRONTEND_BASE_URL=location.origin+location.pathname;
+const API_URL='https://script.google.com/macros/s/AKfycbzmhN2oSMT8ZYUj-H_Wf9d3ci1U5TRsPOpw-tPyQcBRWFy_8zzURVAx1OwPiw-A5lHUJw/exec';
+const SHEET_URL='https://docs.google.com/spreadsheets/d/1o7iChc2zBLK7-X5fcDzbXxm-jmdl-zYo3EJSC7VfQOI/edit?gid=0#gid=0';
+const PURPOSES=[
+{id:'telefon',name:'Pengemaskinian Nombor Telefon',group:'Pengemaskinian Maklumat'},
+{id:'alamat',name:'Pengemaskinian Alamat',group:'Pengemaskinian Maklumat'},
+{id:'kahwin',name:'Pengemaskinian Status Perkahwinan',group:'Pengemaskinian Maklumat'},
+{id:'pasangan',name:'Pengemaskinian Maklumat Pasangan',group:'Pengemaskinian Maklumat'},
+{id:'pendapatan',name:'Pengemaskinian Pekerjaan / Pendapatan',group:'Pengemaskinian Maklumat'},
+{id:'tanggungan',name:'Pengemaskinian Maklumat Tanggungan',group:'Pengemaskinian Maklumat'},
+{id:'tambahdok',name:'Tambah Dokumen',group:'Dokumen'},
+{id:'gantidok',name:'Ganti Dokumen',group:'Dokumen'},
+{id:'dokkurang',name:'Dokumen Tidak Lengkap / Dokumen Tambahan',group:'Dokumen'},
+{id:'permohonan',name:'Pembetulan Maklumat Permohonan',group:'Permohonan'},
+{id:'semakan',name:'Semakan / Isu Permohonan',group:'Permohonan'},
+{id:'lain',name:'Lain-lain Urusan',group:'Lain-lain'}];
+const STATUS={new:{label:'Baharu',cls:'s-new'},review:{label:'Dalam Semakan',cls:'s-review'},incomplete:{label:'Dokumen Tidak Lengkap',cls:'s-incomplete'},updating:{label:'Sedang Dikemaskini',cls:'s-updating'},done:{label:'Selesai',cls:'s-done'},reject:{label:'Ditolak',cls:'s-reject'}};
+let CONFIG={apiUrl:API_URL,maxFileBytes:4*1024*1024,maxFiles:5,hybridMinutes:120};
+let ACTIVE_STAFF=localStorage.getItem('pkpj_active_staff')||'';
+let PUBLIC_STATE={purpose:''};
+let CURRENT_CASES=[];
+let CURRENT_REPORT=[];
+let CURRENT_VIEW='dashboard';
+
+const $=id=>document.getElementById(id);
+function esc(v=''){return String(v).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+function fmt(v){if(!v)return '-';try{return new Intl.DateTimeFormat('ms-MY',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(v))}catch{return v}}
+function bytes(v){if(!v)return'0 B';const k=1024,s=['B','KB','MB'];const i=Math.min(2,Math.floor(Math.log(v)/Math.log(k)));return(v/Math.pow(k,i)).toFixed(i?1:0)+' '+s[i]}
+function purposeName(id){return PURPOSES.find(p=>p.id===id)?.name||id||'-'}
+function statusHTML(s){const o=STATUS[s]||{label:s||'-',cls:'s-new'};return`<span class="status ${o.cls}">${esc(o.label)}</span>`}
+function showLoader(t='Memproses...'){$('loaderText').textContent=t;$('loader').classList.remove('hidden')}
+function hideLoader(){$('loader').classList.add('hidden')}
+function err(e){return e?.message||String(e||'Ralat tidak diketahui.')}
+function appUrl(params={}){const u=new URL(FRONTEND_BASE_URL);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));return u.toString()}
+function go(params={}){location.href=appUrl(params)}
+async function api(action,...args){const r=await fetch(CONFIG.apiUrl,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,args})});if(!r.ok)throw new Error('API tidak dapat dihubungi. HTTP '+r.status);const out=await r.json();if(!out.success)throw new Error(out.error||'Ralat API.');return out.data}
+function requireStaffName(){if(ACTIVE_STAFF)return ACTIVE_STAFF;const n=prompt('Masukkan nama pegawai yang sedang menggunakan portal ini:');if(!n?.trim())throw new Error('Nama Pegawai Aktif diperlukan untuk merekod audit.');ACTIVE_STAFF=n.trim();localStorage.setItem('pkpj_active_staff',ACTIVE_STAFF);refreshStaffPill();return ACTIVE_STAFF}
+function refreshStaffPill(){const x=$('staffPill');if(x)x.textContent=ACTIVE_STAFF?'👤 '+ACTIVE_STAFF:'👤 Tetapkan Pegawai'}
+function setActiveStaff(){const n=prompt('Nama Pegawai Aktif:',ACTIVE_STAFF);if(n===null)return;if(!n.trim())return alert('Nama pegawai tidak boleh kosong.');ACTIVE_STAFF=n.trim();localStorage.setItem('pkpj_active_staff',ACTIVE_STAFF);refreshStaffPill()}
+
+async function boot(){try{CONFIG={...CONFIG,...await api('getClientConfig'),apiUrl:API_URL}}catch(e){console.error(e)}if(UPLOAD_TOKEN)return renderHybridUpload(UPLOAD_TOKEN);if(MODE==='public')return renderPublic();renderStaff('dashboard')}
+
+/* PUBLIC */
+function renderPublic(tab='form'){$('root').innerHTML=`<div class="public-wrap"><div class="public-shell"><div class="public-head"><div class="public-logo">PKPJ</div><div class="public-title">e-Kaunter PKPJ</div><div class="public-sub">Urusan pengemaskinian maklumat dan dokumen secara digital.</div></div><div class="public-tabs"><button class="btn ${tab==='form'?'btn-primary':'btn-light'} btn-sm" onclick="renderPublic('form')">Urusan Baharu</button><button class="btn ${tab==='status'?'btn-primary':'btn-light'} btn-sm" onclick="renderPublic('status')">Semak Status</button></div><div id="publicCard" class="card"></div></div></div>`;if(tab==='status')renderPublicStatus();else{PUBLIC_STATE={purpose:''};renderPublicStep1()}}
+function renderPublicStep1(){$('publicCard').innerHTML=`<div class="card-title"><span>1. Pilih Tujuan Urusan</span><span class="small muted">Langkah 1/3</span></div><div class="choice-grid">${PURPOSES.map(p=>`<button class="choice ${PUBLIC_STATE.purpose===p.id?'active':''}" onclick="selectPurpose('${p.id}')"><b>${esc(p.name)}</b><span>${esc(p.group)}</span></button>`).join('')}</div><div class="divider"></div><div class="notice">Penghantaran melalui sistem ini tidak bermaksud pindaan telah diluluskan. Semua maklumat tertakluk kepada semakan pegawai PKPJ.</div><div style="text-align:right;margin-top:15px"><button class="btn btn-primary" onclick="publicNext1()">Seterusnya →</button></div>`}
+function selectPurpose(id){PUBLIC_STATE.purpose=id;renderPublicStep1()}
+function publicNext1(){if(!PUBLIC_STATE.purpose)return alert('Sila pilih tujuan urusan.');renderPublicStep2()}
+function renderPublicStep2(){$('publicCard').innerHTML=`<div class="card-title"><span>2. Maklumat Pemohon</span><span class="small muted">Langkah 2/3</span></div><div class="grid grid-2"><div class="field"><label class="req">No. Kad Pengenalan</label><input id="p_ic" inputmode="numeric" placeholder="Contoh: 900101011234"></div><div class="field"><label class="req">Nama Penuh</label><input id="p_name" placeholder="Seperti Kad Pengenalan"></div><div class="field"><label class="req">No. Telefon</label><input id="p_phone" inputmode="tel" placeholder="Contoh: 0123456789"></div><div class="field"><label>No. Permohonan / No. Siri</label><input id="p_app" placeholder="Jika berkaitan"></div></div><div class="field"><label>Jenis Urusan</label><input value="${esc(purposeName(PUBLIC_STATE.purpose))}" disabled></div><div class="oldnew"><div class="field" style="margin:0"><label>Maklumat Lama / Semasa</label><textarea id="p_old" placeholder="Jika berkaitan"></textarea></div><div class="arrow">→</div><div class="field" style="margin:0"><label>Maklumat Baharu / Dimohon</label><textarea id="p_new" placeholder="Maklumat baharu / pembetulan"></textarea></div></div><div class="field" style="margin-top:13px"><label>Catatan / Sebab</label><textarea id="p_note" placeholder="Terangkan ringkas tujuan atau isu"></textarea></div><div class="toolbar" style="justify-content:space-between;margin-top:15px"><button class="btn btn-light" onclick="renderPublicStep1()">← Kembali</button><button class="btn btn-primary" onclick="publicNext2()">Seterusnya →</button></div>`;fillPublic()}
+function fillPublic(){if(!PUBLIC_STATE.ic)return;['ic','name','phone'].forEach(k=>$('p_'+k).value=PUBLIC_STATE[k]||'');$('p_app').value=PUBLIC_STATE.appNo||'';$('p_old').value=PUBLIC_STATE.oldValue||'';$('p_new').value=PUBLIC_STATE.newValue||'';$('p_note').value=PUBLIC_STATE.note||''}
+function publicNext2(){const ic=$('p_ic').value.trim(),name=$('p_name').value.trim(),phone=$('p_phone').value.trim();if(!ic||!name||!phone)return alert('Sila lengkapkan No. Kad Pengenalan, Nama dan No. Telefon.');PUBLIC_STATE={...PUBLIC_STATE,ic,name,phone,appNo:$('p_app').value.trim(),oldValue:$('p_old').value.trim(),newValue:$('p_new').value.trim(),note:$('p_note').value.trim()};renderPublicStep3()}
+function renderPublicStep3(){$('publicCard').innerHTML=`<div class="card-title"><span>3. Dokumen & Pengesahan</span><span class="small muted">Langkah 3/3</span></div><div class="field"><label>Dokumen Sokongan</label><input id="p_docs" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="previewFiles(this,'p_filelist')"><div class="help">Maksimum ${CONFIG.maxFiles} fail. Setiap fail maksimum ${bytes(CONFIG.maxFileBytes)}. PDF/JPG/PNG sahaja.</div></div><div id="p_filelist" class="doc-list"></div><div class="divider"></div><label style="display:flex;gap:9px;align-items:flex-start;font-size:11px;line-height:1.5"><input id="p_confirm" type="checkbox" style="width:auto;margin-top:3px"><span>Saya mengesahkan bahawa maklumat dan dokumen yang dikemukakan adalah benar dan boleh digunakan oleh PKPJ bagi tujuan semakan urusan ini.</span></label><div class="toolbar" style="justify-content:space-between;margin-top:17px"><button class="btn btn-light" onclick="renderPublicStep2()">← Kembali</button><button class="btn btn-green" onclick="submitPublic()">Hantar Permohonan</button></div>`}
+function previewFiles(input,target){const a=Array.from(input.files||[]);$(target).innerHTML=a.map(f=>`<div class="doc"><div class="doc-name">📎 ${esc(f.name)}</div><div class="tiny muted">${bytes(f.size)}</div></div>`).join('')}
+async function filesPayload(input){const fs=Array.from(input?.files||[]);if(fs.length>CONFIG.maxFiles)throw new Error(`Maksimum ${CONFIG.maxFiles} dokumen.`);for(const f of fs){if(f.size>CONFIG.maxFileBytes)throw new Error(`Fail ${f.name} melebihi had.`);if(!['application/pdf','image/jpeg','image/png'].includes(f.type))throw new Error(`Format tidak dibenarkan: ${f.name}`)}return Promise.all(fs.map(f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res({name:f.name,mimeType:f.type,size:f.size,base64:String(r.result).split(',')[1]||''});r.onerror=rej;r.readAsDataURL(f)})))}
+async function submitPublic(){if(!$('p_confirm').checked)return alert('Sila tandakan pengesahan.');try{showLoader('Menghantar maklumat...');const docs=await filesPayload($('p_docs'));const r=await api('submitPublicCase',{...PUBLIC_STATE,docs});$('publicCard').innerHTML=`<div class="success-box"><div class="check">✓</div><h2>Maklumat Berjaya Dihantar</h2><p class="muted">Simpan nombor rujukan ini untuk semakan status.</p><div class="ref-box">${esc(r.ref)}</div><div class="small muted">${fmt(r.createdAt)}</div>${r.openCasesForIC>1?`<div class="notice" style="margin-top:14px">Sistem mengesan terdapat lebih daripada satu urusan terbuka di bawah No. Kad Pengenalan ini.</div>`:''}<button class="btn btn-primary" style="margin-top:16px" onclick="renderPublic('form')">Urusan Baharu</button> <button class="btn btn-light" style="margin-top:16px" onclick="renderPublic('status')">Semak Status</button></div>`}catch(e){alert(err(e))}finally{hideLoader()}}
+function renderPublicStatus(){$('publicCard').innerHTML=`<div class="card-title">Semakan Status Urusan</div><div class="field"><label class="req">No. Rujukan</label><input id="s_ref" placeholder="PKPJ-KTR-20260916-0001"></div><div class="field"><label class="req">No. Kad Pengenalan</label><input id="s_ic" inputmode="numeric"></div><button class="btn btn-primary btn-block" onclick="checkPublicStatus()">Semak Status</button><div id="statusResult" style="margin-top:14px"></div>`}
+async function checkPublicStatus(){try{showLoader('Menyemak status...');const r=await api('getPublicCaseStatus',$('s_ref').value.trim(),$('s_ic').value.trim()),c=r.case;$('statusResult').innerHTML=`<div class="notice info"><div class="strong" style="font-size:15px;margin-bottom:8px">${esc(c.ref)}</div><div class="kv"><div class="k">Pemohon</div><div class="v">${esc(c.name)}</div><div class="k">Jenis Urusan</div><div class="v">${esc(purposeName(c.purpose))}</div><div class="k">Status</div><div class="v">${statusHTML(c.status)}</div><div class="k">Kemaskini Terakhir</div><div class="v">${fmt(c.updatedAt)}</div></div></div>`}catch(e){$('statusResult').innerHTML=`<div class="notice danger">${esc(err(e))}</div>`}finally{hideLoader()}}
+
+/* HYBRID */
+async function renderHybridUpload(tk){$('root').innerHTML=`<div class="public-wrap"><div class="public-shell"><div class="public-head"><div class="public-logo">PKPJ</div><div class="public-title">Muat Naik Dokumen</div><div class="public-sub">Dokumen akan dilampirkan terus kepada rekod urusan anda.</div></div><div id="hybridCard" class="card"><div class="muted" style="text-align:center;padding:24px">Memuatkan...</div></div></div></div>`;try{showLoader('Memeriksa QR...');const r=await api('getHybridCaseInfo',tk),c=r.case;$('hybridCard').innerHTML=`<div class="grid grid-2"><div class="field"><label>Nama Pemohon</label><input value="${esc(c.name)}" disabled></div><div class="field"><label>No. Kad Pengenalan</label><input value="${esc(c.icMasked)}" disabled></div></div><div class="field"><label>No. Rujukan</label><input value="${esc(c.ref)}" disabled></div><div class="field"><label class="req">Pilih Dokumen</label><input id="h_docs" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="previewFiles(this,'h_filelist')"><div class="help">QR tamat ${fmt(c.expiresAt)}.</div></div><div id="h_filelist" class="doc-list"></div><button class="btn btn-green btn-block" style="margin-top:14px" onclick="submitHybrid('${esc(tk)}')">Hantar Dokumen</button>`}catch(e){$('hybridCard').innerHTML=`<h2>Pautan Tidak Tersedia</h2><div class="notice danger">${esc(err(e))}</div>`}finally{hideLoader()}}
+async function submitHybrid(tk){try{showLoader('Memuat naik dokumen...');const docs=await filesPayload($('h_docs'));if(!docs.length)throw new Error('Sila pilih sekurang-kurangnya satu dokumen.');const r=await api('submitHybridDocuments',tk,docs);$('hybridCard').innerHTML=`<div class="success-box"><div class="check">✓</div><h2>Dokumen Berjaya Dihantar</h2><p class="muted">${r.count} dokumen dilampirkan kepada ${esc(r.ref)}.</p></div>`}catch(e){alert(err(e))}finally{hideLoader()}}
+
+/* STAFF */
+function nav(id,icon,label,view){return`<button class="nav ${view===id?'active':''}" onclick="renderStaff('${id}')"><span>${icon}</span><span>${label}</span></button>`}
+function renderStaff(view='dashboard'){CURRENT_VIEW=view;$('root').innerHTML=`<div><div class="topbar"><div class="brand"><div class="logo">PKPJ</div><div><div class="brand-title">e-Kaunter PKPJ</div><div class="brand-sub">Portal Dalaman Pengurusan Urusan Kaunter</div></div></div><div class="top-actions"><button id="staffPill" class="pill pill-btn" onclick="setActiveStaff()"></button><button class="pill pill-btn" onclick="openPublicQR()">QR Awam</button></div></div><div class="layout"><aside class="sidebar"><div class="side-title">MENU UTAMA</div>${nav('dashboard','▦','Dashboard',view)}${nav('newcase','＋','Urusan Baharu',view)}${nav('cases','☷','Senarai Kes',view)}${nav('review','◉','Dalam Semakan',view)}${nav('unassigned','◎','Belum Diagih',view)}${nav('done','✓','Selesai',view)}${nav('audit','⌕','Arkib / Audit',view)}${nav('reports','▥','Laporan',view)}<div class="side-title" style="margin-top:17px">PAUTAN</div><button class="nav" onclick="go({mode:'public'})"><span>↗</span><span>Portal Awam</span></button><button class="nav" onclick="window.open(SHEET_URL,'_blank')"><span>▤</span><span>Database Sheet</span></button><div class="side-note">Tiada login staf. Tetapkan <b>Nama Pegawai Aktif</b> supaya setiap tindakan direkod dalam Audit Trail.</div></aside><main class="content" id="staffContent"><div class="muted">Memuatkan...</div></main></div></div>`;refreshStaffPill();if(view==='dashboard')viewDashboard();if(view==='newcase')viewNewCase();if(view==='cases')viewCases('all');if(view==='review')viewCases('review');if(view==='unassigned')viewCases('unassigned');if(view==='done')viewCases('done');if(view==='audit')viewAudit();if(view==='reports')viewReports()}
+async function viewDashboard(){try{showLoader('Memuatkan dashboard...');const r=await api('getDashboardData'),s=r.summary,ch=r.channelsToday;$('staffContent').innerHTML=`<h1 class="page-title">Dashboard</h1><p class="page-sub">Ringkasan operasi e-Kaunter semasa.</p><div class="grid grid-5"><div class="kpi"><div class="label">Urusan Hari Ini</div><div class="value">${s.today}</div><div class="hint">Semua saluran</div></div><div class="kpi"><div class="label">Baharu</div><div class="value">${s.new}</div><div class="hint">Belum disemak</div></div><div class="kpi"><div class="label">Dalam Semakan</div><div class="value">${s.review}</div><div class="hint">Sedang diproses</div></div><div class="kpi"><div class="label">Belum Diagih</div><div class="value">${s.unassigned}</div><div class="hint">Tiada pegawai</div></div><div class="kpi"><div class="label">Selesai Hari Ini</div><div class="value">${s.doneToday}</div><div class="hint">Ditutup hari ini</div></div></div><div class="grid grid-3" style="margin-top:15px"><div class="card"><div class="card-title">Tindakan Pantas</div><div class="grid grid-2"><button class="btn btn-primary btn-block" onclick="renderStaff('newcase')">＋ Urusan Baharu</button><button class="btn btn-light btn-block" onclick="openPublicQR()">▣ QR Awam</button><button class="btn btn-light btn-block" onclick="renderStaff('unassigned')">◎ Belum Diagih</button><button class="btn btn-light btn-block" onclick="renderStaff('audit')">⌕ Carian Audit</button></div></div><div class="card"><div class="card-title">Saluran Hari Ini</div>${channelBars(ch)}</div><div class="card"><div class="card-title">Perhatian Operasi</div><div class="kv"><div class="k">Jumlah Kes Terbuka</div><div class="v">${s.open}</div><div class="k">Dokumen Tidak Lengkap</div><div class="v">${s.incomplete}</div><div class="k">Sedang Dikemaskini</div><div class="v">${s.updating}</div><div class="k">Lebih 3 Hari</div><div class="v">${s.aging}</div></div></div></div><div class="card" style="margin-top:15px"><div class="card-title"><span>Kes Terkini</span><button class="btn btn-light btn-sm" onclick="renderStaff('cases')">Lihat Semua</button></div>${casesTable(r.latest)}</div>`}catch(e){alert(err(e))}finally{hideLoader()}}
+function channelBars(ch){const t=Math.max(1,(ch.self||0)+(ch.assisted||0)+(ch.hybrid||0));return[['self','Self-Service'],['assisted','Staff Bantu Isi'],['hybrid','Hybrid']].map(([k,l])=>{const n=ch[k]||0,p=Math.round(n/t*100);return`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900"><span>${l}</span><span>${n}</span></div><div class="bar"><div style="width:${p}%"></div></div></div>`}).join('')}
+function viewNewCase(){$('staffContent').innerHTML=`<h1 class="page-title">Urusan Baharu</h1><p class="page-sub">Pilih kaedah yang sesuai dengan keadaan pemohon.</p><div class="grid grid-3"><div class="card"><div style="font-size:29px">📱</div><h3 style="margin:9px 0 6px">Pemohon Isi Sendiri</h3><p class="muted small">Pemohon scan QR kekal, isi maklumat dan upload dokumen sendiri.</p><button class="btn btn-primary btn-block" onclick="openPublicQR()">Papar QR Awam</button></div><div class="card"><div style="font-size:29px">👨‍💼</div><h3 style="margin:9px 0 6px">Staff Bantu Isi</h3><p class="muted small">Pegawai isi bagi pihak pemohon dan upload dokumen dari PC.</p><button class="btn btn-dark btn-block" onclick="renderAssisted(false)">Buka Borang Staff</button></div><div class="card"><div style="font-size:29px">🔄</div><h3 style="margin:9px 0 6px">Hybrid</h3><p class="muted small">Staff isi maklumat, pemohon scan QR sementara untuk upload dokumen.</p><button class="btn btn-light btn-block" onclick="renderAssisted(true)">Mulakan Hybrid</button></div></div>`}
+function renderAssisted(hybrid){try{requireStaffName()}catch(e){return alert(err(e))}$('staffContent').innerHTML=`<div class="case-head"><div><h1 class="page-title">${hybrid?'Urusan Hybrid':'Staff Bantu Isi'}</h1><p class="page-sub">${hybrid?'Staff isi maklumat asas; dokumen dihantar melalui QR sementara.':'Lengkapkan maklumat berdasarkan pengesahan pemohon di kaunter.'}</p></div><button class="btn btn-light" onclick="viewNewCase()">← Kembali</button></div><div class="card"><div class="grid grid-2"><div class="field"><label class="req">No. Kad Pengenalan</label><input id="a_ic"></div><div class="field"><label class="req">Nama Penuh</label><input id="a_name"></div><div class="field"><label class="req">No. Telefon</label><input id="a_phone"></div><div class="field"><label>No. Permohonan / No. Siri</label><input id="a_app"></div></div><div class="field"><label class="req">Tujuan Urusan</label><select id="a_purpose"><option value="">-- Pilih --</option>${PURPOSES.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div class="oldnew"><div class="field" style="margin:0"><label>Maklumat Lama / Semasa</label><textarea id="a_old"></textarea></div><div class="arrow">→</div><div class="field" style="margin:0"><label>Maklumat Baharu / Dimohon</label><textarea id="a_new"></textarea></div></div><div class="field" style="margin-top:13px"><label>Catatan / Sebab</label><textarea id="a_note"></textarea></div>${hybrid?'':`<div class="field"><label>Dokumen Sokongan</label><input id="a_docs" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="previewFiles(this,'a_filelist')"><div id="a_filelist" class="doc-list" style="margin-top:7px"></div></div>`}<div class="divider"></div><label style="display:flex;gap:9px;align-items:flex-start;font-size:11px;line-height:1.5"><input id="a_confirm" type="checkbox" style="width:auto;margin-top:3px"><span>Saya mengesahkan maklumat ini telah dikemukakan atau disahkan oleh pemohon semasa urusan di kaunter.</span></label><div style="text-align:right;margin-top:16px"><button class="btn btn-green" onclick="submitAssisted(${hybrid})">${hybrid?'Simpan & Jana QR Dokumen':'Simpan & Hantar'}</button></div></div>`}
+async function submitAssisted(hybrid){const ic=$('a_ic').value.trim(),name=$('a_name').value.trim(),phone=$('a_phone').value.trim(),purpose=$('a_purpose').value;if(!ic||!name||!phone||!purpose)return alert('Sila lengkapkan maklumat wajib.');if(!$('a_confirm').checked)return alert('Sila tandakan pengesahan pegawai.');try{showLoader('Menyimpan kes...');const docs=hybrid?[]:await filesPayload($('a_docs'));const payload={ic,name,phone,purpose,appNo:$('a_app').value.trim(),oldValue:$('a_old').value.trim(),newValue:$('a_new').value.trim(),note:$('a_note').value.trim(),docs};const r=await api('createStaffCase',requireStaffName(),payload,hybrid);if(hybrid)openHybridQR(r.id,r.ref,r.hybridToken,r.hybridExpiresAt);else viewCase(r.id)}catch(e){alert(err(e))}finally{hideLoader()}}
+function openPublicQR(){openQR('QR Portal Awam',appUrl({mode:'public'}),'Pemohon scan QR ini untuk membuka e-Kaunter PKPJ.')}
+function openHybridQR(id,ref,tk,expires){openQR('QR Dokumen - '+ref,appUrl({mode:'public',upload:tk}),'Pemohon scan untuk upload dokumen. Tamat: '+fmt(expires),()=>viewCase(id))}
+async function refreshHybrid(id,ref){try{showLoader('Menjana QR baharu...');const r=await api('refreshHybridToken',requireStaffName(),id);openHybridQR(id,ref,r.hybridToken,r.hybridExpiresAt)}catch(e){alert(err(e))}finally{hideLoader()}}
+function openQR(title,url,desc,onClose){const b=document.createElement('div');b.className='modal-backdrop';b.innerHTML=`<div class="modal"><div class="modal-head"><div><h3 style="margin:0">${esc(title)}</h3><div class="small muted" style="margin-top:4px">${esc(desc)}</div></div><button class="modal-close">×</button></div><div id="qrBox"></div><div class="urlbox">${esc(url)}</div><div style="text-align:center;margin-top:13px"><button id="copyUrl" class="btn btn-primary">Salin Pautan</button></div></div>`;document.body.appendChild(b);const close=()=>{b.remove();onClose&&onClose()};b.querySelector('.modal-close').onclick=close;b.onclick=e=>{if(e.target===b)close()};b.querySelector('#copyUrl').onclick=async()=>{try{await navigator.clipboard.writeText(url);alert('Pautan disalin.')}catch{alert('Tidak dapat menyalin pautan.')}};const box=b.querySelector('#qrBox');if(window.QRCode)new QRCode(box,{text:url,width:225,height:225,colorDark:'#0a2949',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});else box.innerHTML='<div class="notice">QR gagal dimuat. Gunakan pautan di bawah.</div>'}
+
+async function viewCases(filter='all'){$('staffContent').innerHTML=`<h1 class="page-title">${filter==='done'?'Kes Selesai':filter==='review'?'Dalam Semakan':filter==='unassigned'?'Belum Diagih':'Senarai Kes'}</h1><p class="page-sub">Carian dan penapisan rekod e-Kaunter.</p><div class="card"><div class="toolbar"><input id="f_q" class="grow" placeholder="Nama / IC / rujukan / telefon / no. siri"><select id="f_status" style="max-width:190px"><option value="">Semua Status</option>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select><select id="f_source" style="max-width:170px"><option value="">Semua Saluran</option><option value="self">Self-Service</option><option value="assisted">Staff Bantu Isi</option><option value="hybrid">Hybrid</option></select></div><div class="toolbar"><input id="f_from" type="date" style="max-width:170px"><input id="f_to" type="date" style="max-width:170px"><input id="f_staff" placeholder="Pegawai" style="max-width:190px"><button class="btn btn-primary btn-sm" onclick="runCaseSearch('${filter}')">Cari</button><button class="btn btn-light btn-sm" onclick="exportCasesCSV()">Export CSV</button></div><div id="caseCount" class="small muted" style="margin-bottom:9px"></div><div id="caseTableArea" class="muted small">Memuatkan...</div></div>`;await runCaseSearch(filter)}
+async function runCaseSearch(filter){try{showLoader('Memuatkan rekod...');const o={filter,q:$('f_q')?.value||'',status:$('f_status')?.value||'',source:$('f_source')?.value||'',dateFrom:$('f_from')?.value||'',dateTo:$('f_to')?.value||'',assignedTo:$('f_staff')?.value||''};const r=await api('listCases',o);CURRENT_CASES=r.cases;$('caseCount').textContent=r.total+' rekod dijumpai.';$('caseTableArea').innerHTML=casesTable(r.cases)}catch(e){alert(err(e))}finally{hideLoader()}}
+function casesTable(list){if(!list?.length)return`<div style="padding:28px;text-align:center" class="muted">Tiada rekod dijumpai.</div>`;return`<div class="table-wrap"><table><thead><tr><th>Tarikh</th><th>No. Rujukan</th><th>Pemohon</th><th>Urusan</th><th>Saluran</th><th>Status</th><th>Pegawai</th><th></th></tr></thead><tbody>${list.map(c=>`<tr><td>${fmt(c.createdAt)}</td><td><b>${esc(c.ref)}</b></td><td><b>${esc(c.name)}</b><br><span class="tiny muted">${esc(c.ic)} · ${esc(c.phone)}</span></td><td>${esc(purposeName(c.purpose))}</td><td>${esc(c.sourceLabel||c.source)}</td><td>${statusHTML(c.status)}</td><td>${esc(c.assignedTo||'-')}</td><td><button class="btn btn-light btn-sm" onclick="viewCase('${esc(c.id)}')">Buka</button></td></tr>`).join('')}</tbody></table></div>`}
+
+async function viewCase(id){try{showLoader('Memuatkan kes...');const r=await api('getCaseDetail',id),c=r.case;const closed=['done','reject'].includes(c.status);$('staffContent').innerHTML=`<div class="case-head"><div><div class="case-ref">${esc(c.ref)}</div><div class="small muted">Dicipta ${fmt(c.createdAt)} · ${esc(c.sourceLabel)}</div></div><div>${statusHTML(c.status)}</div></div><div class="grid grid-2"><div><div class="card"><div class="card-title"><span>Maklumat Pemohon</span>${!closed?`<button class="btn btn-primary btn-sm" onclick="takeCaseAction('${esc(c.id)}')">${c.assignedTo?'Ambil Alih Kes':'Ambil Kes'}</button>`:''}</div><div class="kv"><div class="k">Nama</div><div class="v">${esc(c.name)}</div><div class="k">No. Kad Pengenalan</div><div class="v">${esc(c.ic)}</div><div class="k">No. Telefon</div><div class="v">${esc(c.phone)}</div><div class="k">No. Permohonan / Siri</div><div class="v">${esc(c.appNo||'-')}</div><div class="k">Jenis Urusan</div><div class="v">${esc(purposeName(c.purpose))}</div><div class="k">Saluran</div><div class="v">${esc(c.sourceLabel)}</div><div class="k">Staff Bantu</div><div class="v">${esc(c.staffHelper||'-')}</div><div class="k">Pegawai Bertanggungjawab</div><div class="v">${esc(c.assignedTo||'Belum diagih')}</div></div></div><div class="card" style="margin-top:15px"><div class="card-title">Perubahan Dimohon</div><div class="oldnew"><div class="data-box"><b>MAKLUMAT LAMA / SEMASA</b>${esc(c.oldValue||'-')}</div><div class="arrow">→</div><div class="data-box"><b>MAKLUMAT BAHARU / DIMOHON</b>${esc(c.newValue||'-')}</div></div><div class="divider"></div><div class="small muted"><b>Catatan Pemohon</b></div><div style="margin-top:5px;font-size:12px;line-height:1.5;white-space:pre-wrap">${esc(c.note||'-')}</div></div><div class="card" style="margin-top:15px"><div class="card-title"><span>Dokumen Sokongan</span>${!closed?`<div><button class="btn btn-light btn-sm" onclick="showStaffUpload('${esc(c.id)}')">＋ Dokumen</button> <button class="btn btn-light btn-sm" onclick="refreshHybrid('${esc(c.id)}','${esc(c.ref)}')">QR Upload</button></div>`:''}</div>${renderDocs(c.docs)}<div id="staffUploadArea"></div></div>${c.history?.length?`<div class="card" style="margin-top:15px"><div class="card-title">Sejarah Pemohon</div>${casesTable(c.history)}</div>`:''}</div><div><div class="card"><div class="card-title">Tindakan Pegawai</div><div class="field"><label>Pegawai Bertanggungjawab</label><input id="c_assign" value="${esc(c.assignedTo||ACTIVE_STAFF)}"></div><div class="field"><label>Status Kes</label><select id="c_status" ${closed?'disabled':''}>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${c.status===k?'selected':''}>${v.label}</option>`).join('')}</select></div><div class="field"><label>Catatan Pegawai</label><textarea id="c_note" ${closed?'disabled':''}>${esc(c.officerNote||'')}</textarea></div><label style="display:flex;gap:9px;align-items:flex-start;font-size:11px"><input id="c_updated" type="checkbox" style="width:auto;margin-top:2px" ${c.systemUpdated?'checked':''} ${closed?'disabled':''}><span>Maklumat telah dikemaskini dalam Sistem Perumahan Johor</span></label>${!closed?`<div class="toolbar" style="margin-top:15px"><button class="btn btn-primary" onclick="saveCase('${esc(c.id)}')">Simpan Tindakan</button><button class="btn btn-green" onclick="finishCase('${esc(c.id)}')">Selesaikan Kes</button></div>`:`<div class="notice success" style="margin-top:14px">Kes ditutup ${c.completedAt?fmt(c.completedAt):''}${c.completedBy?' oleh '+esc(c.completedBy):''}.</div><button class="btn btn-orange" style="margin-top:12px" onclick="reopenCaseAction('${esc(c.id)}')">Buka Semula Kes</button>`}</div><div class="card" style="margin-top:15px"><div class="card-title">Audit Trail</div><div class="audit">${(c.audit||[]).slice().reverse().map(a=>`<div class="audit-item"><div class="audit-time">${fmt(a.time)} · ${esc(a.actor||'Sistem')} · ${esc(a.action||'INFO')}</div><div class="audit-text">${esc(a.text)}</div></div>`).join('')||'<div class="muted small">Tiada audit.</div>'}</div></div></div></div><div style="margin-top:16px"><button class="btn btn-light" onclick="renderStaff('cases')">← Senarai Kes</button></div>`}catch(e){alert(err(e))}finally{hideLoader()}}
+function renderDocs(d=[]){if(!d.length)return`<div class="muted small">Tiada dokumen dilampirkan.</div>`;return`<div class="doc-list">${d.map(x=>`<div class="doc"><div><div class="doc-name">📎 ${esc(x.fileName)}</div><div class="tiny muted">${esc(x.mimeType||'fail')} · ${bytes(Number(x.size)||0)} · ${esc(x.uploadedBy||'')}</div></div><a class="btn btn-light btn-sm" href="${esc(x.driveUrl)}" target="_blank" rel="noopener">Buka</a></div>`).join('')}</div>`}
+async function takeCaseAction(id){try{showLoader('Mengambil kes...');await api('takeCase',requireStaffName(),id);viewCase(id)}catch(e){alert(err(e))}finally{hideLoader()}}
+async function saveCase(id){try{showLoader('Menyimpan tindakan...');await api('saveCaseAction',requireStaffName(),{caseId:id,assignedTo:$('c_assign').value.trim(),status:$('c_status').value,officerNote:$('c_note').value.trim(),systemUpdated:$('c_updated').checked});viewCase(id)}catch(e){alert(err(e))}finally{hideLoader()}}
+async function finishCase(id){if(!$('c_updated').checked&&!confirm('Maklumat belum ditandakan dikemaskini dalam Sistem Perumahan Johor. Teruskan?'))return;try{showLoader('Menutup kes...');await api('completeCase',requireStaffName(),{caseId:id,assignedTo:$('c_assign').value.trim(),officerNote:$('c_note').value.trim(),systemUpdated:$('c_updated').checked});viewCase(id)}catch(e){alert(err(e))}finally{hideLoader()}}
+async function reopenCaseAction(id){const reason=prompt('Sebab buka semula kes:','Semakan / tindakan lanjut');if(reason===null)return;try{showLoader('Membuka semula kes...');await api('reopenCase',requireStaffName(),id,reason);viewCase(id)}catch(e){alert(err(e))}finally{hideLoader()}}
+function showStaffUpload(id){$('staffUploadArea').innerHTML=`<div class="divider"></div><div class="field"><label>Tambah Dokumen oleh Staff</label><input id="staff_docs" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="previewFiles(this,'staff_filelist')"></div><div id="staff_filelist" class="doc-list"></div><button class="btn btn-green btn-sm" style="margin-top:9px" onclick="uploadStaffDocs('${esc(id)}')">Upload Dokumen</button>`}
+async function uploadStaffDocs(id){try{showLoader('Memuat naik dokumen...');const docs=await filesPayload($('staff_docs'));if(!docs.length)throw new Error('Pilih dokumen dahulu.');await api('addStaffDocuments',requireStaffName(),id,docs);viewCase(id)}catch(e){alert(err(e))}finally{hideLoader()}}
+
+function viewAudit(){$('staffContent').innerHTML=`<h1 class="page-title">Arkib / Audit</h1><p class="page-sub">Cari sejarah urusan berdasarkan IC, rujukan, nama, telefon, no. siri atau pegawai.</p><div class="card"><div class="toolbar"><input id="auditQ" class="grow" placeholder="Masukkan carian"><button class="btn btn-primary" onclick="runAudit()">Cari Rekod</button></div><div id="auditResult" class="muted small">Masukkan carian untuk melihat sejarah.</div></div>`}
+async function runAudit(){const q=$('auditQ').value.trim();if(!q)return;try{showLoader('Mencari rekod...');const r=await api('searchAudit',q);$('auditResult').innerHTML=r.cases.length?`<div class="small muted" style="margin-bottom:9px">${r.cases.length} rekod dijumpai.</div>${casesTable(r.cases)}`:'<div style="padding:20px;text-align:center">Tiada rekod dijumpai.</div>'}catch(e){alert(err(e))}finally{hideLoader()}}
+function viewReports(){const d=new Date(),from=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10),to=d.toISOString().slice(0,10);$('staffContent').innerHTML=`<h1 class="page-title">Laporan</h1><p class="page-sub">Analisis urusan mengikut julat tarikh.</p><div class="card"><div class="toolbar"><div class="field" style="margin:0"><label>Tarikh Dari</label><input id="r_from" type="date" value="${from}"></div><div class="field" style="margin:0"><label>Tarikh Hingga</label><input id="r_to" type="date" value="${to}"></div><button class="btn btn-primary" onclick="loadReport()">Jana Laporan</button><button class="btn btn-light" onclick="exportReportCSV()">Export CSV</button></div></div><div id="reportArea" style="margin-top:15px" class="muted">Memuatkan...</div>`;loadReport()}
+async function loadReport(){try{showLoader('Menjana laporan...');const r=await api('getReportData',{dateFrom:$('r_from').value,dateTo:$('r_to').value});CURRENT_REPORT=r.cases;const total=Math.max(1,r.total);$('reportArea').innerHTML=`<div class="grid grid-4"><div class="kpi"><div class="label">Jumlah Kes</div><div class="value">${r.total}</div></div><div class="kpi"><div class="label">Self-Service</div><div class="value">${r.sourceCounts.self||0}</div></div><div class="kpi"><div class="label">Staff Bantu Isi</div><div class="value">${r.sourceCounts.assisted||0}</div></div><div class="kpi"><div class="label">Hybrid</div><div class="value">${r.sourceCounts.hybrid||0}</div></div></div><div class="grid grid-2" style="margin-top:15px"><div class="card"><div class="card-title">Status Kes</div>${Object.entries(STATUS).map(([k,v])=>metricBar(v.label,r.statusCounts[k]||0,total)).join('')}</div><div class="card"><div class="card-title">Jenis Urusan</div>${PURPOSES.map(p=>metricBar(p.name,r.purposeCounts[p.id]||0,total)).join('')}</div></div><div class="grid grid-2" style="margin-top:15px"><div class="card"><div class="card-title">Pegawai / Agihan Kes</div>${Object.entries(r.staffCounts).sort((a,b)=>b[1]-a[1]).map(([n,v])=>metricBar(n,v,total)).join('')||'<div class="muted small">Tiada agihan.</div>'}</div><div class="card"><div class="card-title">Jumlah Mengikut Hari</div>${Object.entries(r.dailyCounts).sort().slice(-31).map(([n,v])=>metricBar(n,v,total)).join('')||'<div class="muted small">Tiada rekod.</div>'}</div></div>`}catch(e){alert(err(e))}finally{hideLoader()}}
+function metricBar(label,n,total){const p=Math.round(n/Math.max(1,total)*100);return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px"><b>${esc(label)}</b><span>${n}</span></div><div class="bar"><div style="width:${p}%"></div></div></div>`}
+function csvDownload(rows,name){const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportCasesCSV(){if(!CURRENT_CASES.length)return alert('Tiada rekod untuk dieksport.');csvDownload(caseRows(CURRENT_CASES),'eKaunter_PKPJ_Rekod.csv')}
+function exportReportCSV(){if(!CURRENT_REPORT.length)return alert('Tiada data laporan untuk dieksport.');csvDownload(caseRows(CURRENT_REPORT),'eKaunter_PKPJ_Laporan.csv')}
+function caseRows(a){const rows=[['No Rujukan','Tarikh','Nama','IC','Telefon','No Permohonan/Siri','Jenis Urusan','Saluran','Status','Pegawai','Sistem Perumahan Dikemaskini']];a.forEach(c=>rows.push([c.ref,fmt(c.createdAt),c.name,c.ic,c.phone,c.appNo,purposeName(c.purpose),c.sourceLabel,STATUS[c.status]?.label||c.status,c.assignedTo,c.systemUpdated?'Ya':'Tidak']));return rows}
+
+boot();
+</script>
+</body>
+</html>
