@@ -1013,70 +1013,22 @@ boot();
   else mount();
 })();
 
-// SISTEM SEMAKAN OCR (INDEPENDENT IT MODULE)
-// URL deployment Apps Script projek OCR sahaja (BUKAN API e-Kaunter).
-// Tampal URL Web App OCR di sini selepas deploy, atau tetapkan dalam skrin Sambungan OCR.
-const OCR_BACKEND_URL = '';
+// TAMBAHAN OCR DALAM e-KAUNTER: guna API_URL / CONFIG.apiUrl asal.
 let OCR_STATE = {files:[],nextPhotoId:1,requestKey:null,savedRecord:null,busy:false};
-// Had bilangan gambar TIDAK ditetapkan. Hanya bilangan pratonton yang dihadkan
-// supaya galeri berpuluh/ratus gambar tidak melambatkan telefon.
 const OCR_GALLERY_STEP=24;
 let OCR_GALLERY_VISIBLE=OCR_GALLERY_STEP;
 let OCR_EXTRA={recordId:null,files:[],nextId:1,busy:false,visible:12};
-const ocrEndpoint = () => String(OCR_BACKEND_URL||localStorage.getItem('pkpj_ocr_api_url')||'').trim();
-const ocrKey = () => 'ocr-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
-const ocrVal = id => document.getElementById(id)?.value||'';
-
-async function ocrRequest(action,...args){
- const url=ocrEndpoint();
- if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec(?:\?.*)?$/i.test(url)){
-  throw new Error('URL OCR belum ditetapkan atau tidak sah. Klik Sambungan OCR dan masukkan URL Web App OCR (berakhir dengan /exec).');
- }
- const response=await fetch(url,{
-  method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
-  body:JSON.stringify({action,args})
- });
- if(!response.ok) throw new Error('Sambungan OCR gagal (HTTP '+response.status+').');
- let result;
- try{ result=await response.json(); }
- catch(_e){ throw new Error('Respons OCR bukan JSON. Semak deployment Apps Script OCR.'); }
- if(result.success===false) throw new Error(result.error||'Tindakan OCR gagal.');
- return result.data ?? result;
-}
+const ocrKey=()=> 'ocr-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+const ocrVal=id=>document.getElementById(id)?.value||'';
+const ocrRequest=(action,...args)=>api(action,...args);
 function ocrEnsureIT(){ if(ACTIVE_COUNTER!=='IT') throw new Error('Modul Sistem Semakan OCR hanya tersedia untuk Kaunter IT.'); }
 function ocrHeader(active){
- return `<div class="ocr-header"><div><span class="ocr-kicker">◈ MODUL KHAS KAUNTER IT · BERASINGAN</span><h1 class="ocr-h1">Sistem Semakan OCR</h1><p class="ocr-sub">Rekod dokumen yang sepatutnya ditolak tetapi diterima oleh sistem OCR.</p></div>
+ return `<div class="ocr-header"><div><span class="ocr-kicker">◈ MODUL KHAS KAUNTER IT</span><h1 class="ocr-h1">Sistem Semakan OCR</h1><p class="ocr-sub">Rekod dokumen yang sepatutnya ditolak tetapi diterima oleh sistem OCR.</p></div>
  <div class="ocr-menu"><button class="ocr-tab ${active==='form'?'active':''}" onclick="ocrShowForm()">＋ Daftar Isu</button><button class="ocr-tab ${active==='list'?'active':''}" onclick="ocrShowList()">☷ Senarai Rekod</button></div></div>`;
 }
 function ocrShowPage(){
  if(ACTIVE_COUNTER!=='IT') return pageDashboard();
  closeMenu();setActiveNav('ocr');ocrShowForm();
-}
-function ocrConfigBox(){
- return `<div class="ocr-panel" style="margin-top:14px"><div class="ocr-panel-title"><span class="ocr-dot">⚙</span>Sambungan OCR Berasingan</div>
- <p class="ocr-sub" style="margin-bottom:12px">Gunakan URL Web App daripada projek Apps Script OCR yang berasingan. Jangan gunakan URL API e-Kaunter.</p>
- <div class="ocr-field"><label>URL Web App OCR</label><input type="url" id="ocrApiInput" value="${esc(ocrEndpoint())}" placeholder="https://script.google.com/macros/s/.../exec"></div>
- <div class="ocr-actions"><button class="ocr-btn ocr-btn-primary" onclick="ocrSaveEndpoint()">Simpan Sambungan</button><button class="ocr-btn" onclick="ocrTestEndpoint()">Uji Sambungan</button></div>
- <div id="ocrConnectionMessage" class="ocr-note">Tetapan manual disimpan dalam browser ini sahaja. Untuk semua komputer staf, letakkan URL dalam pemboleh ubah OCR_BACKEND_URL dalam index.html.</div></div>`;
-}
-function ocrOpenSettings(){
- ocrEnsureIT();
- const view=document.getElementById('ocrConfigArea');
- if(!view)return;
- view.innerHTML = view.innerHTML ? '' : ocrConfigBox();
-}
-function ocrSaveEndpoint(){
- const url=ocrVal('ocrApiInput').trim();
- if(url && !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec(?:\?.*)?$/i.test(url))return alert('URL hendaklah URL Web App Google Apps Script OCR yang berakhir dengan /exec.');
- localStorage.setItem('pkpj_ocr_api_url',url);
- const el=document.getElementById('ocrConnectionMessage');
- if(el)el.textContent='Sambungan OCR disimpan pada browser ini.';
-}
-async function ocrTestEndpoint(){
- const entry=ocrVal('ocrApiInput').trim();
- if(!OCR_BACKEND_URL)localStorage.setItem('pkpj_ocr_api_url',entry);
- try{await ocrRequest('ocrListRecords',{limit:1});alert('Sambungan OCR berjaya.');}
- catch(e){alert('Sambungan OCR belum berjaya: '+(e.message||e));}
 }
 function ocrShowForm(){
  ocrEnsureIT();setActiveNav('ocr');
@@ -1090,25 +1042,25 @@ function ocrShowForm(){
    <div class="ocr-field"><label for="ocrNotes">Catatan</label><textarea id="ocrNotes" maxlength="3000" placeholder="Maklumat tambahan / pemerhatian pegawai."></textarea></div>
    <div class="ocr-field"><label for="ocrFollow">Catatan Tindakan</label><textarea id="ocrFollow" maxlength="3000" placeholder="Tindakan susulan yang dicadangkan / telah dibuat."></textarea></div>
   </div>
-  <div class="ocr-panel"><div class="ocr-panel-title"><span class="ocr-dot">▧</span>Bukti Gambar <span class="ocr-unlimited">Tiada had bilangan</span></div>
+  <div class="ocr-panel"><div class="ocr-panel-title"><span class="ocr-dot">▧</span>Bukti Gambar / PDF <span class="ocr-unlimited">Tiada had bilangan</span></div>
    <p class="ocr-sub">Boleh lampirkan seberapa banyak gambar bukti OCR yang diperlukan.</p>
    <div class="ocr-actions"><button class="ocr-btn ocr-btn-camera" type="button" onclick="document.getElementById('ocrCamera').click()">📷 Ambil Gambar</button>
-   <button class="ocr-btn" type="button" onclick="document.getElementById('ocrFiles').click()">📁 Pilih Banyak Gambar</button></div>
+   <button class="ocr-btn" type="button" onclick="document.getElementById('ocrFiles').click()">📁 Gambar / PDF</button></div>
    <input type="file" id="ocrCamera" accept="image/*" capture="environment" hidden onchange="ocrAddFiles(this)">
-   <input type="file" id="ocrFiles" accept="image/*" multiple hidden onchange="ocrAddFiles(this)">
+   <input type="file" id="ocrFiles" accept="image/*,application/pdf,.pdf" multiple hidden onchange="ocrAddFiles(this)">
    <div class="ocr-tip"><b>Tiada had bilangan gambar.</b> Tekan Kamera berkali-kali atau pilih banyak fail serentak. Gambar akan dipampatkan dan dimuat naik <b>satu demi satu</b>; setiap fail maksimum 3 MB selepas pemampatan, tertakluk kepada kuota Google Drive.</div>
    <div class="ocr-gallery-bar"><b>Gambar dipilih</b><span id="ocrPhotoCount" class="ocr-count">0 gambar</span></div>
    <div class="ocr-photo-grid" id="ocrGallery"></div><div id="ocrGalleryMore" class="ocr-gallery-more"></div>
   </div>
  </div>
  <div class="ocr-panel" style="margin-top:14px"><div class="ocr-rowline" style="margin-top:0;border:0;padding:0">
-  <div><div style="font-size:12px;font-weight:850;color:#16436e">Rekod OCR khusus IT</div><div class="ocr-note">Tidak dimasukkan ke Senarai Kes e-Kaunter atau database e-Kaunter.</div></div>
-  <div class="ocr-actions" style="margin:0"><button class="ocr-btn" type="button" onclick="ocrOpenSettings()">⚙ Sambungan OCR</button><button class="ocr-btn ocr-btn-primary" id="ocrSubmitBtn" type="button" onclick="ocrSubmit()">Simpan Rekod OCR</button></div>
+  <div><div style="font-size:12px;font-weight:850;color:#16436e">Rekod OCR khusus IT</div><div class="ocr-note">Disimpan dalam tab OCR khusus; tidak dicampur dengan Senarai Kes e-Kaunter.</div></div>
+  <div class="ocr-actions" style="margin:0"><button class="ocr-btn ocr-btn-primary" id="ocrSubmitBtn" type="button" onclick="ocrSubmit()">Simpan Rekod OCR</button></div>
  </div><div id="ocrProgressArea" aria-live="polite"></div></div>
  <div id="ocrConfigArea"></div>
  </section>`;
  ocrRenderGallery();
- if(!ocrEndpoint())ocrOpenSettings();
+
 }
 function ocrAddFiles(input){
  ocrEnsureIT();
@@ -1116,13 +1068,15 @@ function ocrAddFiles(input){
  const files=Array.from(input.files||[]);
  let skipped=0;
  for(const f of files){
-  if(!f.type.startsWith('image/') && !/\.(jpg|jpeg|png|webp|heic|heif)$/i.test(f.name)){skipped++;continue;}
-  OCR_STATE.files.push({id:OCR_STATE.nextPhotoId++,file:f,url:URL.createObjectURL(f),done:false,clientPhotoKey:ocrKey()});
+  if(!f.type.startsWith('image/') && f.type!=='application/pdf' && !/\.(jpg|jpeg|png|webp|pdf)$/i.test(f.name)){skipped++;continue;}
+  OCR_STATE.files.push({id:OCR_STATE.nextPhotoId++,file:f,title:'',url:URL.createObjectURL(f),done:false,clientPhotoKey:ocrKey()});
  }
  input.value='';
  ocrRenderGallery();
  if(skipped)alert(skipped+' fail bukan gambar dan tidak dimasukkan.');
 }
+function ocrSetTitle(id,value){const p=OCR_STATE.files.find(x=>x.id===id);if(p)p.title=value;}
+function ocrSetExtraTitle(id,value){const p=OCR_EXTRA.files.find(x=>x.id===id);if(p)p.title=value;}
 function ocrRenderGallery(){
  const g=document.getElementById('ocrGallery'),count=document.getElementById('ocrPhotoCount'),more=document.getElementById('ocrGalleryMore');
  if(!g)return;
@@ -1130,7 +1084,7 @@ function ocrRenderGallery(){
  const uploaded=OCR_STATE.files.filter(p=>p.done).length;
  if(count)count.textContent=total+' gambar'+(uploaded?' · '+uploaded+' telah dimuat naik':'');
  const visible=OCR_STATE.files.slice(0,OCR_GALLERY_VISIBLE);
- g.innerHTML=visible.map((p,i)=>`<div class="ocr-thumb"><img src="${p.url}" alt="Bukti gambar ${i+1}" loading="lazy"><button type="button" aria-label="Buang gambar ${i+1}" ${OCR_STATE.busy||p.done?'disabled':''} onclick="ocrRemovePhoto(${p.id})">×</button><span>${esc(p.file.name)}${p.done?' ✓':''}</span></div>`).join('');
+ g.innerHTML=visible.map((p,i)=>`<div class="ocr-thumb">${p.file.type==='application/pdf'?'<div style="padding:18px;font-weight:800">📄 PDF</div>':`<img src="${p.url}" alt="Bukti gambar ${i+1}" loading="lazy">`}<button type="button" aria-label="Buang gambar ${i+1}" ${OCR_STATE.busy||p.done?'disabled':''} onclick="ocrRemovePhoto(${p.id})">×</button><span>${esc(p.file.name)}${p.done?' ✓':''}</span><input aria-label="Tajuk bukti (pilihan)" placeholder="Tajuk (pilihan)" maxlength="180" value="${esc(p.title||'')}" oninput="ocrSetTitle(${p.id},this.value)" ${p.done?'disabled':''} style="width:100%;padding:6px;border:1px solid #d4e1ed;border-radius:7px;font-size:12px"></div>`).join('');
  if(more)more.innerHTML=total>visible.length?`<span class="ocr-note">Memaparkan ${visible.length} daripada ${total} gambar.</span><button type="button" class="ocr-btn" onclick="ocrShowMoreGallery()">Lihat lagi ${Math.min(OCR_GALLERY_STEP,total-visible.length)} gambar</button>`:'';
 }
 function ocrShowMoreGallery(){
@@ -1150,6 +1104,11 @@ function ocrProgress(message,progress=0,error=false){
  target.innerHTML=`<div class="ocr-progress" style="${error?'background:#fff2f0;border-color:#f3d1cc;color:#ac4135':''}">${esc(message)}<div class="ocr-progress-track"><span style="width:${Math.min(100,Math.max(0,progress))}%"></span></div></div>`;
 }
 async function ocrResizeForUpload(file){
+ if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+  if(file.size>4*1024*1024)throw new Error('PDF melebihi 4 MB: '+file.name);
+  return {fileName:file.name,mimeType:'application/pdf',base64:await fileToBase64(file)};
+ }
+
  // Setiap fail dihantar berasingan: tiada had bilangan gambar di borang.
  const img=await new Promise((resolve,reject)=>{
   const i=new Image();const u=URL.createObjectURL(file);
@@ -1194,14 +1153,14 @@ async function ocrSubmit(){
    if(p.done)continue;
    ocrProgress('Muat naik gambar '+(done+1)+' daripada '+count+' • '+OCR_STATE.savedRecord.ref,10+Math.round(done/Math.max(1,count)*85));
    const data=await ocrResizeForUpload(p.file);
-   await ocrRequest('ocrUploadImage',OCR_STATE.savedRecord.id,{...data,clientPhotoKey:p.clientPhotoKey});
+   await ocrRequest('ocrUploadImage',OCR_STATE.savedRecord.id,{...data,title:p.title||'',clientPhotoKey:p.clientPhotoKey});
    p.done=true;done++;ocrRenderGallery();
   }
   const saved=OCR_STATE.savedRecord;
   for(const p of OCR_STATE.files)URL.revokeObjectURL(p.url);
   OCR_STATE={files:[],nextPhotoId:1,requestKey:null,savedRecord:null,busy:false};
   const el=document.getElementById('content');
-  el.innerHTML=`<section class="ocr-wrap">${ocrHeader('form')}<div class="ocr-panel" style="max-width:650px;margin:20px auto;text-align:center"><div style="font-size:40px;margin-bottom:10px">✅</div><h2 style="color:#123d62;margin-bottom:6px">Rekod OCR Berjaya Disimpan</h2><p class="ocr-sub">Maklumat direkodkan dalam pangkalan data OCR berasingan.</p><h3 style="color:#1d70af;margin:18px 0">${esc(saved.ref)}</h3><div class="ocr-actions" style="justify-content:center"><button class="ocr-btn ocr-btn-primary" onclick="ocrOpenEdit('${esc(saved.id)}')">✏ Kemaskini Rekod</button><button class="ocr-btn ocr-btn-print" onclick="ocrPrintRecord('${esc(saved.id)}')">🖨 Cetak Rekod</button><button class="ocr-btn" onclick="ocrShowForm()">Daftar Rekod Baharu</button><button class="ocr-btn" onclick="ocrShowList()">Lihat Senarai OCR</button></div></div></section>`;
+  el.innerHTML=`<section class="ocr-wrap">${ocrHeader('form')}<div class="ocr-panel" style="max-width:650px;margin:20px auto;text-align:center"><div style="font-size:40px;margin-bottom:10px">✅</div><h2 style="color:#123d62;margin-bottom:6px">Rekod OCR Berjaya Disimpan</h2><p class="ocr-sub">Maklumat direkodkan dalam tab OCR khusus e-Kaunter.</p><h3 style="color:#1d70af;margin:18px 0">${esc(saved.ref)}</h3><div class="ocr-actions" style="justify-content:center"><button class="ocr-btn ocr-btn-primary" onclick="ocrOpenEdit('${esc(saved.id)}')">✏ Kemaskini Rekod</button><button class="ocr-btn ocr-btn-print" onclick="ocrPrintRecord('${esc(saved.id)}')">🖨 Cetak Rekod</button><button class="ocr-btn" onclick="ocrShowForm()">Daftar Rekod Baharu</button><button class="ocr-btn" onclick="ocrShowList()">Lihat Senarai OCR</button></div></div></section>`;
  }catch(e){
   const ref=OCR_STATE.savedRecord?.ref;
   ocrProgress((ref?'Rekod '+ref+' telah disimpan, namun ada gambar belum berjaya. ':'')+(e.message||e)+' Tekan Simpan Rekod OCR untuk cuba semula.',OCR_STATE.files.length?Math.round(OCR_STATE.files.filter(p=>p.done).length/OCR_STATE.files.length*100):0,true);
@@ -1218,9 +1177,9 @@ async function ocrShowList(){
  root.innerHTML=`<section class="ocr-wrap">${ocrHeader('list')}<div class="ocr-panel"><div class="ocr-listtools">
  <input id="ocrSearch" placeholder="Cari nama dokumen, kesalahan atau rujukan" onkeydown="if(event.key==='Enter')ocrLoadList()">
  <select id="ocrFilter"><option value="">Semua Status</option><option>Baharu</option><option>Dalam Semakan</option><option>Selesai</option></select>
- <button class="ocr-btn ocr-btn-primary" onclick="ocrLoadList()">Cari Rekod</button><button class="ocr-btn" onclick="ocrOpenSettings()">⚙</button></div>
+ <button class="ocr-btn ocr-btn-primary" onclick="ocrLoadList()">Cari Rekod</button></div>
  <div id="ocrResults"><div class="ocr-empty">Sedang memuatkan rekod OCR...</div></div></div><div id="ocrConfigArea"></div></section>`;
- if(!ocrEndpoint())ocrOpenSettings();else await ocrLoadList();
+await ocrLoadList();
 }
 async function ocrLoadList(){
  ocrEnsureIT(); const area=document.getElementById('ocrResults');if(!area)return;
@@ -1233,7 +1192,7 @@ async function ocrLoadList(){
   if(!rows.length){area.innerHTML=stat+'<div class="ocr-empty">Tiada rekod OCR ditemui.</div>';return;}
   const table=`<div class="ocr-tablewrap"><table class="ocr-table"><thead><tr><th>Rujukan / Tarikh</th><th>Nama Dokumen</th><th>Kesalahan</th><th>Gambar</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.ref)}</b><div class="ocr-note">${fmt(r.createdAt)}</div></td><td class="ocr-tdname">${esc(r.documentName)}</td><td>${esc((r.errorDescription||'').slice(0,95))}${(r.errorDescription||'').length>95?'…':''}</td><td>${Number(r.photoCount)||0}</td><td>${ocrStatusBadge(r.status)}</td><td><button class="ocr-btn" onclick="ocrOpenRecord('${esc(r.id)}')">Buka</button><button class="ocr-btn ocr-btn-edit" onclick="ocrOpenEdit('${esc(r.id)}')" aria-label="Kemaskini rekod ${esc(r.ref)}">✏ Kemaskini</button><button class="ocr-btn ocr-btn-print" onclick="ocrPrintRecord('${esc(r.id)}')" aria-label="Cetak rekod ${esc(r.ref)}">🖨 Cetak</button></td></tr>`).join('')}</tbody></table></div>`;
   const mobile=`<div class="ocr-mobile-list">${rows.map(r=>`<div class="ocr-mobile-item"><div class="ocr-smallcaps">${esc(r.ref)} · ${fmt(r.createdAt)}</div><div style="font-size:14px;font-weight:800;color:#153e64;margin:8px 0">${esc(r.documentName)}</div><div class="ocr-note">${esc((r.errorDescription||'').slice(0,130))}</div><div class="ocr-rowline">${ocrStatusBadge(r.status)}<div class="ocr-actions" style="margin:0"><button class="ocr-btn" onclick="ocrOpenRecord('${esc(r.id)}')">Buka</button><button class="ocr-btn ocr-btn-edit" onclick="ocrOpenEdit('${esc(r.id)}')">✏ Kemaskini</button><button class="ocr-btn ocr-btn-print" onclick="ocrPrintRecord('${esc(r.id)}')">🖨 Cetak</button></div></div></div>`).join('')}</div>`;
-  area.innerHTML=stat+table+mobile+`<div class="ocr-note" style="margin-top:10px">Memaparkan ${rows.length} daripada ${response.total} rekod sepadan. Gambar disimpan dalam Drive OCR berasingan.</div>`;
+  area.innerHTML=stat+table+mobile+`<div class="ocr-note" style="margin-top:10px">Memaparkan ${rows.length} daripada ${response.total} rekod sepadan. Lampiran disimpan dalam folder OCR_BUKTI e-Kaunter.</div>`;
  }catch(e){area.innerHTML=`<div class="ocr-progress" style="background:#fff1ef;color:#a7473b">${esc(e.message||e)}</div>`;}
 }
 async function ocrOpenRecord(id){
@@ -1244,19 +1203,19 @@ async function ocrOpenRecord(id){
  openModal(`<div class="ocr-panel-title">Rekod Sistem Semakan OCR</div><p class="ocr-note">Memuatkan butiran...</p>`);
  try{
   const r=await ocrRequest('ocrGetRecord',id),item=r.record,photos=r.photos||[];
-  const photoLinks=photos.map((p,i)=>`<a class="ocr-btn" style="justify-content:flex-start;text-align:left" target="_blank" rel="noopener noreferrer" href="${esc(p.url)}">🖼 Gambar ${i+1}: ${esc(p.fileName)}</a>`).join('');
+  const photoLinks=photos.map((p,i)=>`<a class="ocr-btn" style="justify-content:flex-start;text-align:left" target="_blank" rel="noopener noreferrer" href="${esc(p.url)}">${p.mimeType==='application/pdf'?'📄 Buka PDF':'🖼 Buka Gambar'} ${i+1}: ${esc(p.title||p.fileName)}</a>`).join('');
   $('modal').innerHTML=`<div class="modal-head"><div><div class="ocr-kicker">SISTEM SEMAKAN OCR · KAUNTER IT</div><h2 style="margin:8px 0 3px">${esc(item.ref)}</h2><div class="ocr-note">${fmt(item.createdAt)}</div></div><button type="button" class="modal-close" onclick="closeModal()">×</button></div>
   <div class="ocr-wrap" style="margin-top:14px"><div class="ocr-panel" style="box-shadow:none">
    <div class="ocr-smallcaps">Nama Dokumen</div><h3 style="font-size:17px;color:#173f64;margin:6px 0 14px">${esc(item.documentName)}</h3>
    <div class="ocr-smallcaps">Kesalahan Dokumen</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap;margin:6px 0 14px">${esc(item.errorDescription)}</div>
    <div class="ocr-smallcaps">Catatan</div><div style="font-size:12px;white-space:pre-wrap;margin:6px 0 14px">${esc(item.notes||'-')}</div>
-   <div class="ocr-smallcaps">Gambar Bukti Disimpan (${photos.length})</div><div class="ocr-actions" style="margin:8px 0 0">${photoLinks||'<span class="ocr-note">Tiada gambar dilampirkan.</span>'}</div>
+   <div class="ocr-smallcaps">Lampiran Bukti Disimpan (${photos.length})</div><div class="ocr-actions" style="margin:8px 0 0">${photoLinks||'<span class="ocr-note">Tiada gambar dilampirkan.</span>'}</div>
    <div class="ocr-tip">Pautan gambar hanya boleh dibuka oleh akaun yang diberi akses kepada folder Drive OCR.</div>
    <div class="ocr-extra-block">
     <div class="ocr-panel-title"><span class="ocr-dot">＋</span>Tambah Lagi Gambar <span class="ocr-unlimited">Tiada had bilangan</span></div>
-    <div class="ocr-actions"><button type="button" class="ocr-btn ocr-btn-camera" onclick="document.getElementById('ocrExtraCamera').click()">📷 Kamera Telefon</button><button type="button" class="ocr-btn" onclick="document.getElementById('ocrExtraFiles').click()">📁 Pilih Banyak Gambar</button></div>
+    <div class="ocr-actions"><button type="button" class="ocr-btn ocr-btn-camera" onclick="document.getElementById('ocrExtraCamera').click()">📷 Kamera Telefon</button><button type="button" class="ocr-btn" onclick="document.getElementById('ocrExtraFiles').click()">📁 Gambar / PDF</button></div>
     <input id="ocrExtraCamera" type="file" accept="image/*" capture="environment" hidden onchange="ocrAddExtraPhotos(this)">
-    <input id="ocrExtraFiles" type="file" accept="image/*" multiple hidden onchange="ocrAddExtraPhotos(this)">
+    <input id="ocrExtraFiles" type="file" accept="image/*,application/pdf,.pdf" multiple hidden onchange="ocrAddExtraPhotos(this)">
     <div class="ocr-gallery-bar"><b>Gambar tambahan</b><span id="ocrExtraCount" class="ocr-count">0 gambar</span></div>
     <div id="ocrExtraGallery" class="ocr-photo-grid"></div><div id="ocrExtraGalleryMore" class="ocr-gallery-more"></div>
     <div class="ocr-actions"><button type="button" id="ocrExtraSaveBtn" class="ocr-btn ocr-btn-primary" onclick="ocrUploadExtraPhotos('${esc(item.id)}')" disabled>Tambah Gambar ke Rekod Ini</button></div>
@@ -1353,8 +1312,9 @@ function ocrPrintPhotos(photos){
  if(!photos.length)return '<p class="empty">Tiada gambar bukti dilampirkan.</p>';
  return `<div class="photo-grid">${photos.map((p,i)=>{
   const safe=ocrPrintSafeDrive(p.url), id=ocrPrintPhotoId(p.url);
+  if(p.mimeType==='application/pdf')return `<figure class="photo"><div class="no-image">📄 PDF</div><figcaption><b>${esc(p.title||'Dokumen PDF '+(i+1))}</b><span>${esc(p.fileName)}</span>${safe?`<a href="${esc(safe)}" target="_blank" rel="noopener">Buka / Cetak PDF Asal</a>`:''}</figcaption></figure>`;
   const preview=id?'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600':'';
-  const name=esc(p.fileName||'Gambar '+(i+1));
+  const name=esc(p.title||p.fileName||'Gambar '+(i+1));
   return `<figure class="photo">
     ${preview?`<img src="${esc(preview)}" alt="Bukti ${i+1}" loading="eager" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="no-image" style="display:none">Pratonton gambar tidak tersedia. Buka pautan Drive di bawah.</div>`:'<div class="no-image">Pratonton gambar tidak tersedia.</div>'}
     <figcaption><b>Bukti ${i+1}</b><span>${name}</span>${safe?`<a target="_blank" rel="noopener noreferrer" href="${esc(safe)}">Buka gambar dalam Google Drive</a>`:'<span>Pautan gambar tidak tersedia</span>'}</figcaption>
@@ -1383,7 +1343,7 @@ function ocrPrintableHTML(record,photos){
  <h1>Laporan Semakan OCR</h1><p class="sub">Dokumen yang sepatutnya ditolak tetapi diterima oleh sistem OCR.</p>
  <div class="meta"><div><span class="label">No. Rujukan</span><b>${esc(record.ref)}</b></div><div><span class="label">Tarikh Rekod</span><b>${esc(fmt(record.createdAt))}</b></div><div><span class="label">Status</span><b>${esc(record.status||'-')}</b></div><div><span class="label">Pegawai / Kaunter</span><b>${esc(record.officer||'Kaunter IT')}</b></div></div>
  ${sections}<section class="photos"><h2>Gambar Bukti (${photos.length})</h2>${ocrPrintPhotos(photos)}</section>
- <footer class="footer"><span>Dokumen dalaman · Sistem Semakan OCR Kaunter IT</span><span>Gambar bukti tertakluk pada akses Google Drive OCR</span></footer>
+ <footer class="footer"><span>Dokumen dalaman · Sistem Semakan OCR Kaunter IT</span><span>Lampiran tertakluk pada akses Google Drive; cetak PDF asal melalui pautannya</span></footer>
  </main></body></html>`;
 }
 function ocrPrintRecord(id){
@@ -1420,8 +1380,8 @@ function ocrAddExtraPhotos(input){
  const files=Array.from(input.files||[]);
  let skipped=0;
  for(const file of files){
-  if(!file.type.startsWith('image/') && !/\.(jpg|jpeg|png|webp|heic|heif)$/i.test(file.name)){skipped++;continue;}
-  OCR_EXTRA.files.push({id:OCR_EXTRA.nextId++,file,url:URL.createObjectURL(file),done:false,clientPhotoKey:ocrKey()});
+  if(!file.type.startsWith('image/') && file.type!=='application/pdf' && !/\.(jpg|jpeg|png|webp|pdf)$/i.test(file.name)){skipped++;continue;}
+  OCR_EXTRA.files.push({id:OCR_EXTRA.nextId++,file,title:'',url:URL.createObjectURL(file),done:false,clientPhotoKey:ocrKey()});
  }
  input.value='';
  ocrRenderExtraGallery();
@@ -1437,7 +1397,7 @@ function ocrRenderExtraGallery(){
  const done=OCR_EXTRA.files.filter(x=>x.done).length;
  if(count)count.textContent=total+' gambar'+(done?' · '+done+' dimuat naik':'');
  const visible=OCR_EXTRA.files.slice(0,OCR_EXTRA.visible);
- gal.innerHTML=visible.map((p,i)=>`<div class="ocr-thumb"><img src="${p.url}" alt="Gambar tambahan ${i+1}" loading="lazy"><button type="button" aria-label="Buang gambar tambahan ${i+1}" ${OCR_EXTRA.busy||p.done?'disabled':''} onclick="ocrRemoveExtraPhoto(${p.id})">×</button><span>${esc(p.file.name)}${p.done?' ✓':''}</span></div>`).join('');
+ gal.innerHTML=visible.map((p,i)=>`<div class="ocr-thumb">${p.file.type==='application/pdf'?'<div style="padding:18px;font-weight:800">📄 PDF</div>':`<img src="${p.url}" alt="Gambar tambahan ${i+1}" loading="lazy">`}<button type="button" aria-label="Buang gambar tambahan ${i+1}" ${OCR_EXTRA.busy||p.done?'disabled':''} onclick="ocrRemoveExtraPhoto(${p.id})">×</button><span>${esc(p.file.name)}${p.done?' ✓':''}</span><input aria-label="Tajuk bukti tambahan (pilihan)" placeholder="Tajuk (pilihan)" maxlength="180" value="${esc(p.title||'')}" oninput="ocrSetExtraTitle(${p.id},this.value)" ${p.done?'disabled':''} style="width:100%;padding:6px;border:1px solid #d4e1ed;border-radius:7px;font-size:12px"></div>`).join('');
  if(more)more.innerHTML=total>visible.length?`<span class="ocr-note">${visible.length} / ${total} dipaparkan.</span><button type="button" class="ocr-btn" onclick="OCR_EXTRA.visible+=12;ocrRenderExtraGallery()">Lihat lagi</button>`:'';
  if(btn)btn.disabled=OCR_EXTRA.busy||!OCR_EXTRA.files.some(p=>!p.done);
 }
@@ -1467,7 +1427,7 @@ async function ocrUploadExtraPhotos(recordId){
    if(p.done)continue;
    ocrExtraProgress('Muat naik gambar tambahan '+(done+1)+' daripada '+total,Math.round(done/total*100));
    const data=await ocrResizeForUpload(p.file);
-   await ocrRequest('ocrUploadImage',recordId,{...data,clientPhotoKey:p.clientPhotoKey});
+   await ocrRequest('ocrUploadImage',recordId,{...data,title:p.title||'',clientPhotoKey:p.clientPhotoKey});
    p.done=true;done++;
    ocrRenderExtraGallery();
   }
