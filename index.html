@@ -1313,7 +1313,7 @@ function ocrPrintPhotos(photos){
  return `<div class="photo-grid">${photos.map((p,i)=>{
   const safe=ocrPrintSafeDrive(p.url), id=ocrPrintPhotoId(p.url);
   if(p.mimeType==='application/pdf')return `<figure class="photo"><div class="no-image">📄 PDF</div><figcaption><b>${esc(p.title||'Dokumen PDF '+(i+1))}</b><span>${esc(p.fileName)}</span>${safe?`<a href="${esc(safe)}" target="_blank" rel="noopener">Buka / Cetak PDF Asal</a>`:''}</figcaption></figure>`;
-  const preview=id?'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600':'';
+  const preview=p.printDataUrl|| (id?'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1600':'');
   const name=esc(p.title||p.fileName||'Gambar '+(i+1));
   return `<figure class="photo">
     ${preview?`<img src="${esc(preview)}" alt="Bukti ${i+1}" loading="eager" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="no-image" style="display:none">Pratonton gambar tidak tersedia. Buka pautan Drive di bawah.</div>`:'<div class="no-image">Pratonton gambar tidak tersedia.</div>'}
@@ -1334,11 +1334,11 @@ function ocrPrintableHTML(record,photos){
  .tools{max-width:850px;margin:22px auto 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.hint{color:#5b6e81;font-size:12px}.printbtn{border:0;border-radius:10px;padding:11px 19px;background:#125e99;color:white;font-weight:800;cursor:pointer}.paper{width:min(850px,calc(100% - 30px));margin:0 auto 26px;background:white;padding:34px 38px;box-shadow:0 18px 40px #1a35521b}
  .brand{display:flex;align-items:center;justify-content:space-between;gap:15px;border-bottom:3px solid #eabf4f;padding-bottom:16px;margin-bottom:20px}.brand-left{display:flex;align-items:center;gap:13px}.logo{width:57px;height:57px;object-fit:contain}.org{font-size:17px;font-weight:900;color:#073b69;margin:0}.motto{font-size:10px;color:#58708a}.tag{font-size:10px;color:#36678e;letter-spacing:.1em;font-weight:800;text-align:right}
  h1{color:#102f50;font-size:22px;margin:4px 0 5px;letter-spacing:-.02em}h2{font-size:11px;text-transform:uppercase;color:#32658e;letter-spacing:.07em;margin:0 0 8px}.sub{color:#6d8194;margin:0 0 16px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:16px 0 20px;border:1px solid #dbe6ef;border-radius:11px;overflow:hidden}.meta div{padding:11px 12px;border-bottom:1px solid #dbe6ef}.meta div:nth-child(odd){border-right:1px solid #dbe6ef}.meta .label{display:block;font-size:10px;color:#7b8b9a;margin-bottom:3px}.meta b{font-size:12px;color:#143d61}.section{padding:12px 0;border-bottom:1px solid #e3ebf2;break-inside:avoid-page}.bodycopy{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}.photos h2{margin-top:20px}.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.photo{margin:0;border:1px solid #e0e8f0;border-radius:10px;overflow:hidden;break-inside:avoid-page}.photo img{display:block;width:100%;max-height:265px;object-fit:contain;background:#f8fafc}.photo figcaption{padding:9px 10px;font-size:10px;display:grid;gap:2px;overflow-wrap:anywhere}.photo a{font-size:10px;color:#125b99;text-decoration:underline}.no-image{padding:28px;background:#f4f8fb;text-align:center;color:#6d8092}.empty{color:#8799a9;font-style:italic}
- .footer{border-top:1px solid #dce7ef;margin-top:22px;padding-top:10px;display:flex;justify-content:space-between;gap:12px;color:#687d91;font-size:10px;flex-wrap:wrap}
+ .photo{break-inside:avoid-page;page-break-inside:avoid}.photo img{display:block;max-width:100%;object-fit:contain;max-height:170mm;margin:0 auto}.footer{border-top:1px solid #dce7ef;margin-top:22px;padding-top:10px;display:flex;justify-content:space-between;gap:12px;color:#687d91;font-size:10px;flex-wrap:wrap}
  @media print{@page{size:A4;margin:14mm}html,body{background:#fff;margin:0}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.tools{display:none!important}.paper{width:auto;margin:0;padding:0;box-shadow:none}.section,.photo{break-inside:avoid-page}.photo img{max-height:74mm}a{color:#174d7f}}
  @media(max-width:620px){.paper{padding:18px}.brand{flex-wrap:wrap}.photo-grid,.meta{grid-template-columns:1fr}.meta div:nth-child(odd){border-right:0}}
  </style></head><body>
- <div class="tools"><span class="hint">Pratonton A4 · Cetakan mengambil data yang terakhir disimpan.</span><button class="printbtn" onclick="window.print()">🖨 Cetak / Simpan PDF</button></div>
+ <div class="tools"><span class="hint">Pratonton A4 · Cetakan mengambil data yang terakhir disimpan.</span><button class="printbtn" id="ocrPrintNow" onclick="window.print()">🖨 Cetak / Simpan PDF</button></div>
  <main class="paper"><header class="brand"><div class="brand-left"><img class="logo" src="${OCR_PRINT_LOGO}" alt="Logo PKPJ"><div><div class="org">PKPJ</div><div class="motto">Membangun · Melindungi · Menyejahtera</div></div></div><div class="tag">MODUL KAUNTER IT<br>SISTEM SEMAKAN OCR</div></header>
  <h1>Laporan Semakan OCR</h1><p class="sub">Dokumen yang sepatutnya ditolak tetapi diterima oleh sistem OCR.</p>
  <div class="meta"><div><span class="label">No. Rujukan</span><b>${esc(record.ref)}</b></div><div><span class="label">Tarikh Rekod</span><b>${esc(fmt(record.createdAt))}</b></div><div><span class="label">Status</span><b>${esc(record.status||'-')}</b></div><div><span class="label">Pegawai / Kaunter</span><b>${esc(record.officer||'Kaunter IT')}</b></div></div>
@@ -1355,10 +1355,39 @@ function ocrPrintRecord(id){
  w.document.open();
  w.document.write('<!doctype html><html lang="ms"><head><meta charset="UTF-8"><title>Menjana Cetakan OCR</title></head><body style="font:15px system-ui;padding:40px;color:#123b60">Menyediakan laporan OCR untuk dicetak...</body></html>');
  w.document.close();
- ocrRequest('ocrGetRecord',id).then(r=>{
+ ocrRequest('ocrGetRecord',id).then(async r=>{
   if(w.closed)return;
-  const report=ocrPrintableHTML(r.record||{},r.photos||[]);
+  const photos=r.photos||[];
+  const images=photos.filter(p=>p.mimeType!=='application/pdf');
+  const failures=[];
+  // Muatkan imej daripada Drive melalui backend sedia ada, bukan URL thumbnail awam.
+  // Satu demi satu supaya semua gambar (termasuk fail Drive peribadi) masuk dalam cetakan.
+  for(let i=0;i<images.length;i++){
+   if(w.closed)return;
+   w.document.body.textContent='Memuatkan gambar untuk laporan: '+(i+1)+' / '+images.length+' ...';
+   try{
+    const result=await ocrRequest('ocrGetPrintImage',id,images[i].id);
+    if(!result||!result.dataUrl)throw Error('Data gambar kosong');
+    images[i].printDataUrl=result.dataUrl;
+   }catch(e){failures.push((images[i].title||images[i].fileName||'Gambar '+(i+1))+': '+(e.message||e));}
+  }
+  if(w.closed)return;
+  const report=ocrPrintableHTML(r.record||{},photos);
   w.document.open();w.document.write(report);w.document.close();
+  if(failures.length){
+   const note=w.document.createElement('div');
+   note.style.cssText='padding:12px;margin:12px auto;max-width:850px;border:2px solid #b91c1c;background:#fff1f2;color:#991b1b;font:13px system-ui';
+   note.textContent=failures.length+' gambar gagal dimuatkan: '+failures.join(' | ')+'. Jangan cetak dahulu; semak akses Drive / fail asal.';
+   w.document.body.insertBefore(note,w.document.body.firstChild);
+   const btn=w.document.getElementById('ocrPrintNow');if(btn){btn.disabled=true;btn.textContent='Cetakan ditangguh: gambar tidak lengkap';}
+  }
+  // Tunggu semua gambar selesai diproses browser sebelum butang cetak digunakan.
+  const loaded=Array.from(w.document.querySelectorAll('.photos img'));
+  await Promise.all(loaded.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=resolve;img.onerror=resolve;})));
+  if(!w.closed&&!failures.length){
+   const missing=loaded.filter(img=>!img.naturalWidth);
+   if(missing.length){const btn=w.document.getElementById('ocrPrintNow');if(btn){btn.disabled=true;btn.textContent='Cetakan ditangguh: '+missing.length+' gambar gagal dipaparkan';}}
+  }
  }).catch(err=>{
   if(w.closed)return;
   w.document.body.textContent='Gagal menyediakan cetakan OCR: '+(err.message||err);
