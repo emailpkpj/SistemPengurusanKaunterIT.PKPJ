@@ -1666,9 +1666,10 @@ async function ocrUploadExtraPhotos(recordId){
 </script>
 <!-- PKPJ V16: tambahan cetak halaman / tajuk / pukal; kod V14 tidak diubah -->
 <script>
-/* PKPJ OCR V16 — add-on cetak SATU halaman A4 bagi SETIAP halaman PDF / gambar.
+/* PKPJ OCR V17 — add-on cetak SATU halaman A4 bagi SETIAP halaman PDF / gambar.
  * Semua fungsi sedia ada e-Kaunter tidak diubah. Tiada URL API baharu.
  * Tajuk setiap halaman adalah pilihan dan boleh disimpan dalam OCR_PAGE_TITLES.
+ * V17: progress % sebenar berdasarkan lampiran/halaman siap, paparan ralat jelas, cetak tanpa tunggu panggilan simpan API.
  */
 (function(){
  'use strict';
@@ -1687,8 +1688,11 @@ async function ocrUploadExtraPhotos(recordId){
  };
  const waitImage=img=>new Promise(resolve=>{
   if(img.complete)return resolve(img.naturalWidth>0);
-  img.addEventListener('load',()=>resolve(true),{once:true});
-  img.addEventListener('error',()=>resolve(false),{once:true});
+  let done=false;
+  const finish=ok=>{if(done)return;done=true;clearTimeout(timer);resolve(ok);};
+  const timer=setTimeout(()=>finish(false),30000);
+  img.addEventListener('load',()=>finish(true),{once:true});
+  img.addEventListener('error',()=>finish(false),{once:true});
  });
  function loadScript(url){
   return new Promise((resolve,reject)=>{
@@ -1731,7 +1735,19 @@ async function ocrUploadExtraPhotos(recordId){
    .toolbar button{padding:10px 13px;border:1px solid #aed3ee;border-radius:9px;background:#f1f8ff;color:#12426a;font-weight:750;cursor:pointer}
    .toolbar button.primary{background:#f3c755;color:#172f47;border-color:#f3c755}
    .toolbar button:disabled{opacity:.5;cursor:not-allowed}
-   #v16Status{margin-left:auto;font-size:12px;color:#d5e7f6}
+   #v16Status{font-size:11px;color:#d5e7f6;flex:1 1 200px;overflow-wrap:anywhere}
+   .v17-progress{flex:1 1 250px;max-width:410px;min-width:230px;border:1px solid #ffffff42;border-radius:11px;padding:7px 10px;background:#ffffff12}
+   .v17-progress-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;font-size:11px}
+   #v17Percent{font-size:15px;font-weight:900;color:#ffdc7d;font-variant-numeric:tabular-nums;min-width:39px}
+   #v17ProgressDetails{font-size:10px;color:#d9e8f5;text-align:right;line-height:1.35}
+   .v17-progress-track{height:9px;border-radius:9px;background:#071f3e;border:1px solid #ffffff35;overflow:hidden}
+   #v17Fill{width:0%;height:100%;border-radius:9px;background:linear-gradient(90deg,#33bfec,#f3cc5f);transition:width .18s ease}
+   #v17Retry{background:#fff3de;color:#814300}
+   .v17-info{max-width:210mm;margin:8px auto 0;background:#f1f8ff;border:1px solid #cddff0;border-radius:9px;padding:10px 14px;color:#315b79;font-size:12px}
+   .v17-info.ready{background:#e8fbef;border-color:#92d8ad;color:#15673f}
+   .v17-info.error{background:#fff0f0;border-color:#e7abab;color:#9c2525}
+   .v17-info strong{font-weight:900}
+
    .warning{max-width:210mm;margin:14px auto;background:#fff2f2;border:1px solid #e69c9c;padding:14px;color:#a02828;font-weight:700;overflow-wrap:anywhere}
    .page-card{width:210mm;max-width:100%;margin:18px auto 22px;background:white;box-shadow:0 8px 35px #132e4d23}
    .summary-card{display:none}body.show-summary .summary-card{display:block}
@@ -1755,11 +1771,11 @@ async function ocrUploadExtraPhotos(recordId){
    .img-notice{color:#ba3434;font-weight:800;font-size:14px}
    .footer{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:9mm;flex-shrink:0;border-top:1px solid #e1e9f0;margin-top:4mm;padding-top:2mm;font-size:9px;color:#71879c}
    .footer span:last-child{text-align:right}
-   @media(max-width:820px){.page-editor{flex-direction:column;align-items:stretch}.page-editor label{min-width:0;flex:auto}.toolbar{position:relative}#v16Status{margin-left:0}}
+   @media(max-width:820px){.page-editor{flex-direction:column;align-items:stretch}.page-editor label{min-width:0;flex:auto}.toolbar{position:relative}.v17-progress{max-width:none;width:100%}#v16Status{flex:1 1 100%;}}
    @page{size:A4 portrait;margin:0}
    @media print{
     html,body{padding:0!important;margin:0!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .toolbar,.page-editor,.warning{display:none!important}
+    .toolbar,.page-editor,.warning,.v17-info{display:none!important}
     .page-card{width:210mm;height:297mm;margin:0!important;max-width:none!important;box-shadow:none!important;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}
     .page-card:last-of-type{break-after:auto;page-break-after:auto}
     .sheet{width:210mm!important;height:297mm!important;max-width:none!important;margin:0!important;box-shadow:none;break-inside:avoid;page-break-inside:avoid}
@@ -1771,13 +1787,38 @@ async function ocrUploadExtraPhotos(recordId){
     <label style="font-size:11px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="v16Summary"> Sertakan Ringkasan (+1 setiap rekod)</label>
     <button type="button" id="v16Save" disabled>💾 Simpan Tajuk Halaman</button>
     <button type="button" id="v16Print" class="primary" disabled>🖨 Cetak / Simpan PDF</button>
-    <span id="v16Status" role="status" aria-live="polite">Menyediakan laporan...</span>
-   </div><div id="v16Error" role="alert"></div><main id="v16Pages" data-logo="${escV(logo)}"></main></body></html>`);
+    <div class="v17-progress" aria-label="Kemajuan pemprosesan cetakan">
+     <div class="v17-progress-head"><strong id="v17Percent" aria-live="polite">0%</strong><span id="v17ProgressDetails">Memulakan proses...</span></div>
+     <div class="v17-progress-track" role="progressbar" aria-label="Kemajuan menyediakan laporan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="v17ProgressTrack"><div id="v17Fill"></div></div>
+    </div>
+    <span id="v16Status" role="status" aria-live="polite">Memuatkan rekod OCR. Butang Cetak aktif apabila selesai 100%.</span>
+    <button type="button" id="v17Retry" hidden>Cuba Lagi</button>
+   </div><div id="v16Error" role="alert"></div><div id="v17Info" class="v17-info"><strong>Proses menyediakan laporan:</strong> Gambar/PDF diproses mengikut halaman. Butang Cetak akan aktif selepas semua halaman siap (100%).</div><main id="v16Pages" data-logo="${escV(logo)}"></main></body></html>`);
   w.document.close();
   w.document.getElementById('v16Summary')?.addEventListener('change',e=>w.document.body.classList.toggle('show-summary',e.target.checked));
   return w;
  }
  function setStatus(w,message){if(!w.closed){const el=w.document.getElementById('v16Status');if(el)el.textContent=message;}}
+ function updateProgress(w,value,message,detail){
+  if(w.closed)return;
+  const pct=w.document.getElementById('v17Percent');
+  const bar=w.document.getElementById('v17Fill');
+  const track=w.document.getElementById('v17ProgressTrack');
+  const text=w.document.getElementById('v17ProgressDetails');
+  const percent=Math.min(100,Math.max(0,Math.floor(Number(value)||0)));
+  const previous=Number(track?.getAttribute('aria-valuenow')||'0');
+  const shown=Math.max(percent,previous);
+  if(pct)pct.textContent=shown+'%';
+  if(bar)bar.style.width=shown+'%';
+  if(track)track.setAttribute('aria-valuenow',String(shown));
+  if(text&&detail!=null)text.textContent=String(detail);
+  if(message!=null)setStatus(w,message);
+ }
+ function setInfo(w,message,kind){
+  if(w.closed)return;
+  const n=w.document.getElementById('v17Info');
+  if(n){n.className='v17-info'+(kind?' '+kind:'');n.textContent=message;}
+ }
  function addError(w,error){if(w.closed)return;const el=w.document.getElementById('v16Error');if(el)el.insertAdjacentHTML('beforeend',`<div class="warning">⚠ ${escV(error)}</div>`);}
  function summaryCard(w,r){
   const main=w.document.getElementById('v16Pages');
@@ -1818,18 +1859,26 @@ async function ocrUploadExtraPhotos(recordId){
   return map;
  }
  async function assemblePdf(w,r,file,titleMap,current){
+  updateProgress(w,current.filePercent(0),`Memuatkan PDF ${file.fileName||'lampiran'} daripada e-Kaunter...`, `Lampiran ${current.fileNo} / ${current.totalFiles}`);
   const response=await ocrRequest('ocrGetPrintPdf',r.id,file.id);
+  if(w.closed)return;
+  updateProgress(w,current.filePercent(0),`Membaca PDF ${file.fileName||'lampiran'}...`, 'Mengenal pasti bilangan halaman');
   const lib=await getPdfLib();
   const task=lib.getDocument({data:bytesFrom64(response.base64),useSystemFonts:true});
   const pdf=await task.promise;
   try{
    if(!pdf.numPages)throw new Error('PDF tidak mempunyai halaman.');
    if(pdf.numPages>200)throw new Error('PDF melebihi 200 halaman. Sila pecahkan PDF kepada fail lebih kecil.');
+   current.totalKnownPages+=pdf.numPages;
    for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
     if(w.closed)return;
-    setStatus(w,`Rekod ${current.record} / ${current.totalRecords} · PDF ${escV(file.fileName)} · Halaman ${pageNo} / ${pdf.numPages}`);
+    const name=String(file.fileName||'PDF');
+    updateProgress(w,current.filePercent((pageNo-1)/pdf.numPages),
+     `Rekod ${current.record} / ${current.totalRecords} · ${name} · sedang memproses halaman ${pageNo} / ${pdf.numPages}`,
+     `Halaman ${pageNo} / ${pdf.numPages} · ${current.index} halaman siap`);
     const pg=await pdf.getPage(pageNo);
     const natural=pg.getViewport({scale:1});
+    // Kekalkan resolusi yang jelas tetapi hadkan penggunaan memori untuk PDF panjang.
     const scale=Math.min(1.8,Math.sqrt(2200000/Math.max(1,natural.width*natural.height)));
     const viewport=pg.getViewport({scale});
     const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
@@ -1843,18 +1892,28 @@ async function ocrUploadExtraPhotos(recordId){
      const title=titleMap.get(file.id+'#'+pageNo)??(pageNo===1?String(file.title||''):'');
      const im=pageCard(w,{record:r,file,pageNumber:pageNo,totalPdfPages:pdf.numPages,title,src,isPdf:true,index:++current.index});
      current.images.push(im);
+     if(!(await waitImage(im)))throw new Error('Imej halaman '+pageNo+' PDF gagal dimuatkan.');
+     current.pagesReady++;
+     current.onPage(file,pageNo,pdf.numPages);
+     // PDF.js dan penjanaan imej adalah asynchronous; elak requestAnimationFrame kerana tab latar boleh menangguhkannya.
     }finally{canvas.width=0;canvas.height=0;pg.cleanup?.();}
    }
   }finally{await pdf.destroy?.();}
  }
  async function assembleImage(w,r,file,titleMap,current){
+  updateProgress(w,current.filePercent(0),`Memuatkan gambar ${file.fileName||'lampiran'}...`,`Lampiran ${current.fileNo} / ${current.totalFiles}`);
   const response=await ocrRequest('ocrGetPrintImage',r.id,file.id);
+  if(w.closed)return;
   const mime=String(file.mimeType||'image/jpeg');
   const blob=new Blob([bytesFrom64(response.base64||String(response.dataUrl||'').split(',')[1])],{type:mime});
   const src=w.URL.createObjectURL(blob);current.objectUrls.push(src);
   const title=titleMap.get(file.id+'#1')??String(file.title||'');
   const im=pageCard(w,{record:r,file,pageNumber:1,totalPdfPages:1,title,src,isPdf:false,index:++current.index});
   current.images.push(im);
+  if(!(await waitImage(im)))throw new Error('Gambar '+(file.fileName||'lampiran')+' gagal dipaparkan.');
+  current.pagesReady++;
+  current.totalKnownPages++;
+  current.onPage(file,1,1);
  }
  async function saveTitles(w,quiet=false){
   if(w.closed)return false;
@@ -1868,8 +1927,8 @@ async function ocrUploadExtraPhotos(recordId){
    grouped.get(key).push({fileId:input.dataset.fileId,page:Number(input.dataset.page),title:current});
   }
   if(!grouped.size){if(!quiet)setStatus(w,'Tiada perubahan tajuk untuk disimpan.');return true;}
-  const btn=w.document.getElementById('v16Save');const print=w.document.getElementById('v16Print');
-  if(btn)btn.disabled=true;if(print)print.disabled=true;
+  const btn=w.document.getElementById('v16Save');
+  if(btn)btn.disabled=true;
   try{
    for(const [recordId,updates] of grouped){
     for(let i=0;i<updates.length;i+=100)await ocrRequest('ocrSavePageTitles',recordId,updates.slice(i,i+100));
@@ -1878,7 +1937,7 @@ async function ocrUploadExtraPhotos(recordId){
    setStatus(w,'Tajuk halaman berjaya disimpan.');
    return true;
   }catch(e){addError(w,'Gagal simpan tajuk: '+(e.message||e));setStatus(w,'Tajuk belum disimpan.');return false;}
-  finally{if(btn)btn.disabled=false;if(print)print.disabled=false;}
+  finally{if(btn)btn.disabled=false;}
  }
  async function buildPrint(ids){
   try{if(typeof ocrEnsureIT==='function')ocrEnsureIT();}
@@ -1886,49 +1945,101 @@ async function ocrUploadExtraPhotos(recordId){
   if(!ids.length){alert('Sila pilih sekurang-kurangnya satu rekod OCR.');return;}
   let w;
   try{w=makePrintWindow();}catch(e){alert(e.message||e);return;}
-  const ctx={record:0,totalRecords:ids.length,index:0,images:[],objectUrls:[],failures:[]};
-  const btnSave=w.document.getElementById('v16Save'),btnPrint=w.document.getElementById('v16Print');
+  const ctx={record:0,totalRecords:ids.length,index:0,images:[],objectUrls:[],failures:[],
+   fileNo:0,totalFiles:0,filesDone:0,pagesReady:0,totalKnownPages:0,titleSavingAvailable:true,
+   filePercent:function(fraction){return 8+((this.filesDone+Math.min(1,Math.max(0,fraction)))/Math.max(this.totalFiles,1))*85;},
+   onPage:function(file,pagenum,total){
+    updateProgress(w,this.filePercent(pagenum/total),
+      `Rekod ${this.record} / ${this.totalRecords} · ${file.fileName||'lampiran'} · halaman ${pagenum} / ${total} siap`,
+      `${this.pagesReady} halaman siap · Lampiran ${this.fileNo} / ${this.totalFiles}`);
+   }};
+  const btnSave=w.document.getElementById('v16Save'),btnPrint=w.document.getElementById('v16Print'),btnRetry=w.document.getElementById('v17Retry');
   btnSave.addEventListener('click',()=>saveTitles(w));
-  btnPrint.addEventListener('click',async()=>{if(await saveTitles(w,true)){w.focus();w.print();}});
+  // Kekalkan tindakan cetak SECARA LANGSUNG daripada klik pengguna (tanpa menunggu API simpan tajuk).
+  // Tajuk yang diedit dalam pratonton terus terpapar dalam muka surat cetakan.
+  btnPrint.addEventListener('click',()=>{w.focus();w.print();});
+  btnRetry.addEventListener('click',()=>{if(!w.closed)w.close();buildPrint(ids);});
   const revoke=()=>{for(const url of ctx.objectUrls){try{w.URL.revokeObjectURL(url);}catch(e){}}};
   w.addEventListener('beforeunload',revoke,{once:true});
+  updateProgress(w,0,'Menghubungi data OCR e-Kaunter...','0 halaman siap');
   try{
-   for(const id of ids){
+   // Fasa 1: Ambil metadata semua rekod dahulu supaya jumlah lampiran diketahui.
+   // PDF masih diambil satu demi satu supaya memori tidak melambung bagi cetakan pukal.
+   const records=[];
+   for(let i=0;i<ids.length;i++){
+    if(w.closed)return;
+    updateProgress(w,Math.min(8,Math.round((i/ids.length)*8)),
+      `Membaca rekod ${i+1} / ${ids.length} daripada Google Sheet...`,'Menyediakan senarai lampiran');
+    let response;
+    try{response=await ocrRequest('ocrGetRecord',ids[i]);}
+    catch(e){ctx.failures.push('Rekod '+ids[i]+': '+(e.message||e));continue;}
+    const record=response?.record||{},files=response?.photos||[];
+    if(!record.id){ctx.failures.push('Rekod '+ids[i]+' tidak lengkap.');continue;}
+    if(!files.length){ctx.failures.push('Rekod '+record.ref+' tiada lampiran untuk dicetak.');continue;}
+    let map=new Map();
+    try{map=await titleMapFor(record.id);}
+    catch(e){
+     // Gagal dapat tajuk bukan sebab untuk menggagalkan laporan/cetakan.
+     ctx.titleSavingAvailable=false;
+     addError(w,'Tajuk terdahulu tidak dapat dibaca bagi '+(record.ref||record.id)+'. Cetakan diteruskan. Untuk simpan tajuk, deploy Code.gs V16/V17.');
+    }
+    records.push({record,files,map});
+    ctx.totalFiles+=files.length;
+   }
+   if(w.closed)return;
+   if(!ctx.totalFiles){throw new Error(ctx.failures.join(' | ')||'Tiada gambar atau PDF untuk dicetak.');}
+   updateProgress(w,8,`${records.length} rekod ditemui · ${ctx.totalFiles} lampiran akan diproses`, 'Mula menjana halaman A4');
+   // Fasa 2: Setiap fail PDF dan imej dijana secara berperingkat, peratus dikemas kini bagi SETIAP halaman siap.
+   for(const entry of records){
     if(w.closed)return;
     ctx.record++;
-    let response;
-    try{setStatus(w,`Memuatkan rekod ${ctx.record} daripada ${ids.length}...`);response=await ocrRequest('ocrGetRecord',id);}
-    catch(e){ctx.failures.push('Rekod '+id+': '+(e.message||e));continue;}
-    const record=response?.record||{},files=response?.photos||[];
-    if(!record.id){ctx.failures.push('Rekod '+id+' tidak lengkap.');continue;}
-    let map;
-    try{map=await titleMapFor(record.id);}
-    catch(e){ctx.failures.push('Tajuk '+record.ref+': '+(e.message||e)+'; deploy Code.gs V16.');continue;}
-    if(!files.length){ctx.failures.push('Rekod '+record.ref+' tiada lampiran untuk dicetak.');continue;}
+    const {record,files,map}=entry;
     summaryCard(w,record);
     for(const file of files){
      if(w.closed)return;
+     ctx.fileNo++;
      try{
       const mime=String(file.mimeType||'').toLowerCase();
       if(mime==='application/pdf')await assemblePdf(w,record,file,map,ctx);
       else if(/^image\/(png|jpeg|webp)$/.test(mime))await assembleImage(w,record,file,map,ctx);
       else throw new Error('Format lampiran tidak disokong: '+mime);
-     }catch(e){ctx.failures.push((record.ref||'Rekod')+' / '+(file.fileName||'lampiran')+': '+(e.message||e));}
+     }catch(e){
+      ctx.failures.push((record.ref||'Rekod')+' / '+(file.fileName||'lampiran')+': '+(e.message||e));
+     }finally{
+      ctx.filesDone++;
+      updateProgress(w,ctx.filePercent(0),
+       `Lampiran ${ctx.filesDone} / ${ctx.totalFiles} telah diproses · ${ctx.pagesReady} halaman siap`,
+       `Halaman siap: ${ctx.pagesReady}`);
+     }
     }
    }
    if(w.closed)return;
-   setStatus(w,`Menyemak ${ctx.index} halaman cetakan...`);
+   updateProgress(w,94,`Mengesahkan ${ctx.index} halaman A4 sebelum cetak...`, 'Semakan akhir imej bukti');
    let broken=0;
-   for(const im of ctx.images)if(!(await waitImage(im)))broken++;
+   for(let i=0;i<ctx.images.length;i++){
+    if(!(await waitImage(ctx.images[i])))broken++;
+    if(i%5===0||i===ctx.images.length-1)
+     updateProgress(w,94+5*((i+1)/Math.max(ctx.images.length,1)),
+       `Semakan cetakan ${i+1} / ${ctx.images.length} halaman`, `Mengesahkan semua gambar`);
+   }
    if(ctx.failures.length||broken){
-    addError(w,'Cetakan ditangguh: '+ctx.failures.length+' lampiran/rekod gagal diproses dan '+broken+' halaman imej gagal dimuatkan. '+ctx.failures.join(' | '));
-    setStatus(w,'Tidak lengkap; semak ralat di atas. Cetak dinyahaktifkan.');
+    addError(w,'Cetakan belum lengkap: '+ctx.failures.length+' lampiran/rekod gagal diproses dan '+broken+' halaman imej gagal dimuatkan. '+ctx.failures.join(' | '));
+    setInfo(w,`Sebahagian lampiran tidak berjaya dimuatkan. Sila tekan Cuba Lagi selepas semak sambungan Internet atau Code.gs.`, 'error');
+    setStatus(w,'Proses terhenti. Sila lihat ralat dan tekan Cuba Lagi.');
+    btnRetry.hidden=false;
     return;
    }
    if(!ctx.index)throw new Error('Tiada halaman bukti dijana untuk dicetak.');
-   btnSave.disabled=false;btnPrint.disabled=false;
-   setStatus(w,`${ctx.index} muka surat A4 siap · ${ids.length} rekod · Tajuk setiap halaman boleh dikemaskini`);
-  }catch(e){addError(w,'Gagal sediakan cetakan: '+(e.message||e));setStatus(w,'Ralat memproses laporan.');}
+   btnSave.disabled=!ctx.titleSavingAvailable;
+   btnPrint.disabled=false;
+   updateProgress(w,100,`Siap! ${ctx.index} halaman bukti A4 · ${ids.length} rekod. Klik CETAK / SIMPAN PDF.`, `${ctx.pagesReady} halaman sedia dicetak`);
+   setInfo(w,`Semua ${ctx.index} halaman bukti telah siap. Klik Cetak / Simpan PDF. Tajuk halaman yang diubah boleh dicetak terus; tekan Simpan Tajuk Halaman jika mahu simpan untuk cetakan akan datang.`, 'ready');
+  }catch(e){
+   addError(w,'Gagal sediakan cetakan: '+(e.message||e));
+   setInfo(w,'Cetakan belum boleh diteruskan. Semak ralat, kemudian tekan Cuba Lagi.', 'error');
+   setStatus(w,'Ralat memproses laporan.');
+   btnRetry.hidden=false;
+  }
  }
  function renderBulkControls(){
   const result=document.getElementById('ocrResults');
