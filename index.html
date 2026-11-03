@@ -2088,5 +2088,148 @@ async function ocrUploadExtraPhotos(recordId){
 })();
 
 </script>
+<!-- V18 TAMBAHAN SAHAJA: TAMPAL SCREENSHOT OCR, TIADA PERUBAHAN KOD ASAL -->
+<style id="ocr-paste-addon-v18-style">
+.ocr-paste-zone{margin:12px 0 8px;border:1px dashed #80a9c9;border-radius:13px;background:#f6fbff;padding:12px 13px;color:#193e5c}
+.ocr-paste-zone:focus-within{border-color:#176aaa;box-shadow:0 0 0 3px rgba(30,117,190,.12)}
+.ocr-paste-title{font-size:12px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ocr-paste-textarea{display:block;width:100%;min-height:55px;resize:vertical;border:1px solid #d0e2f1;background:#fff;color:#24516f;border-radius:9px;padding:10px 12px;font:12px/1.5 system-ui,"Segoe UI",sans-serif}
+.ocr-paste-help{font-size:11px;color:#54718a;line-height:1.55;margin-top:7px}
+.ocr-paste-status{font-size:11px;margin-top:8px;font-weight:700;color:#117454;min-height:18px;line-height:1.5}
+.ocr-paste-status[data-error="true"]{color:#ae4b31}
+.ocr-paste-button{border-color:#a9c7e1!important;color:#0c588d!important;background:#eaf5ff!important}
+/* Gambar yang ditampal turut memaparkan medan Tajuk (pilihan) dengan jelas. */
+.ocr-wrap .ocr-photo-grid .ocr-thumb{aspect-ratio:auto;display:flex;flex-direction:column;padding:6px;min-width:0;overflow:visible}
+.ocr-wrap .ocr-photo-grid .ocr-thumb img{width:100%;height:104px;flex:0 0 104px;object-fit:contain;background:#fff;border-radius:7px}
+.ocr-wrap .ocr-photo-grid .ocr-thumb > span{position:static;color:#31506d;background:transparent;padding:6px 0 5px;font-size:10px}
+.ocr-wrap .ocr-photo-grid .ocr-thumb > input{display:block!important;min-height:33px;flex:0 0 auto;margin-top:auto}
+.ocr-wrap .ocr-photo-grid .ocr-thumb > button{z-index:2;top:8px;right:8px}
+@media(max-width:660px){.ocr-paste-zone{padding:11px}.ocr-paste-button{width:100%}}
+</style>
+<script id="ocr-paste-addon-v18-script">
+/*
+ * V18 - TAMBAHAN OCR SAHAJA: Screenshot -> Ctrl+V / Tampal dari Clipboard.
+ * Memanggil fungsi OCR asal untuk upload, simpan, tajuk dan cetak tanpa mengubahnya.
+ * Guna clipboard hanya apabila pengguna menekan Tampal atau menampal imej sendiri.
+ */
+(function(){
+ 'use strict';
+ const MIME_OK=/^image\/(?:png|jpeg|webp)$/i;
+ let seq=0;
+ function counterIT(){return typeof ACTIVE_COUNTER!=='undefined' && ACTIVE_COUNTER==='IT';}
+ function visibleTarget(){
+  if(!counterIT())return null;
+  const modal=document.getElementById('modalWrap');
+  if(modal && modal.classList.contains('show')){
+   // Jika modal butiran OCR masih terbuka, screenshot masuk rekod sedia ada.
+   return document.getElementById('ocrExtraFiles')?'extra':null;
+  }
+  return document.getElementById('ocrFiles')?'form':null;
+ }
+ function status(mode,message,isError=false){
+  const node=document.getElementById(mode==='extra'?'ocrPasteStatusExtra':'ocrPasteStatusForm');
+  if(node){node.textContent=message;node.dataset.error=isError?'true':'false';}
+ }
+ function targetElement(mode){return document.getElementById(mode==='extra'?'ocrPasteZoneExtra':'ocrPasteZoneForm');}
+ function focusTarget(mode){
+  const el=targetElement(mode)?.querySelector('textarea');
+  if(el){el.focus();el.select();}
+ }
+ function fileFromBlob(blob){
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/T/,'_').slice(0,15);
+  const ext=/webp/i.test(blob.type)?'webp':/jpeg/i.test(blob.type)?'jpg':'png';
+  const fileName=`Screenshot_OCR_${stamp}_${String(++seq).padStart(2,'0')}.${ext}`;
+  return new File([blob],fileName,{type:blob.type||'image/png',lastModified:Date.now()});
+ }
+ function addImages(mode,blobs){
+  if(!counterIT() || visibleTarget()!==mode)return;
+  if(!blobs.length){status(mode,'Tiada gambar ditemui dalam Clipboard. Ambil screenshot dahulu.',true);return;}
+  const busy=mode==='extra'?OCR_EXTRA.busy:OCR_STATE.busy;
+  if(busy){status(mode,'Proses simpan sedang berjalan. Sila tunggu sehingga selesai.',true);return;}
+  const files=blobs.filter(b=>b && MIME_OK.test(b.type)).map(fileFromBlob);
+  if(!files.length){status(mode,'Format clipboard tidak disokong. Guna screenshot PNG/JPG/WEBP.',true);return;}
+  const pseudoInput={files,value:''};
+  if(mode==='extra')ocrAddExtraPhotos(pseudoInput);
+  else ocrAddFiles(pseudoInput);
+  const n=files.length;
+  status(mode,`${n} screenshot berjaya ditambah. Anda boleh isi Tajuk (pilihan), kemudian tekan ${mode==='extra'?'Tambah Gambar ke Rekod Ini':'Simpan Rekod OCR'}.`);
+  // Skrol ke kawasan bukti, bukan ke atas borang.
+  const gallery=document.getElementById(mode==='extra'?'ocrExtraGallery':'ocrGallery');
+  if(gallery && gallery.querySelector('img'))gallery.scrollIntoView({block:'nearest',behavior:'smooth'});
+ }
+ function filesFromPaste(e){
+  const items=Array.from(e.clipboardData?.items||[]);
+  let images=items.filter(i=>i.kind==='file'&&MIME_OK.test(i.type)).map(i=>i.getAsFile()).filter(Boolean);
+  if(!images.length)images=Array.from(e.clipboardData?.files||[]).filter(f=>MIME_OK.test(f.type));
+  return images;
+ }
+ document.addEventListener('paste',function(e){
+  const mode=visibleTarget();
+  if(!mode)return;
+  const images=filesFromPaste(e);
+  if(!images.length)return; // Tampal teks dalam Nama Dokumen/Catatan tetap berfungsi.
+  e.preventDefault();
+  addImages(mode,images);
+ },true);
+ async function pasteButton(mode){
+  if(visibleTarget()!==mode)return;
+  status(mode,'Menyemak screenshot dalam Clipboard...');
+  try{
+   if(!window.isSecureContext || !navigator.clipboard || typeof navigator.clipboard.read!=='function'){
+    throw new Error('Browser tidak menyokong akses Clipboard automatik.');
+   }
+   // Panggilan dari klik pengguna sahaja (memerlukan kebenaran browser).
+   const items=await navigator.clipboard.read();
+   const blobs=[];
+   for(const item of items){
+    const mime=item.types.find(t=>MIME_OK.test(t));
+    if(mime)blobs.push(await item.getType(mime));
+   }
+   if(!blobs.length){status(mode,'Clipboard belum mempunyai gambar. Gunakan Win + Shift + S dahulu.',true);focusTarget(mode);return;}
+   addImages(mode,blobs);
+  }catch(e){
+   status(mode,'Akses Clipboard tidak dibenarkan. Klik ruang tampal di bawah dan tekan Ctrl + V (Windows) / Cmd + V (Mac).',true);
+   focusTarget(mode);
+  }
+ }
+ function mountOne(mode,inputId){
+  const input=document.getElementById(inputId);
+  if(!input || targetElement(mode))return;
+  const actions=input.parentElement?.querySelector('.ocr-actions');
+  if(!actions)return;
+  const button=document.createElement('button');
+  button.type='button';
+  button.className='ocr-btn ocr-paste-button';
+  button.textContent='📋 Tampal Screenshot';
+  button.title='Salin screenshot, kemudian tampal terus ke dalam OCR tanpa menyimpan fail.';
+  button.addEventListener('click',()=>pasteButton(mode));
+  actions.appendChild(button);
+  const wrap=document.createElement('div');
+  wrap.id=mode==='extra'?'ocrPasteZoneExtra':'ocrPasteZoneForm';
+  wrap.className='ocr-paste-zone';
+  wrap.innerHTML='<div class="ocr-paste-title">📋 Screenshot terus daripada Clipboard</div>'+
+    '<textarea class="ocr-paste-textarea" rows="2" aria-label="Tampal screenshot OCR" placeholder="Klik di sini, kemudian Ctrl + V untuk tampal gambar (atau tekan lama → Tampal pada telefon jika disokong)"></textarea>'+
+    '<div class="ocr-paste-help"><b>Windows:</b> Win + Shift + S → pilih kawasan skrin → Ctrl + V di sini. <b>Mac:</b> Control + Shift + Command + 4, kemudian Command + V. Boleh ulang untuk banyak gambar. Tajuk gambar tidak wajib.</div>'+
+    '<div class="ocr-paste-status" id="'+(mode==='extra'?'ocrPasteStatusExtra':'ocrPasteStatusForm')+'" role="status" aria-live="polite">Belum ada screenshot ditampal.</div>';
+  actions.insertAdjacentElement('afterend',wrap);
+  // Ruangan ini khusus untuk imej - jangan simpan teks yang tidak sengaja ditaip.
+  const textarea=wrap.querySelector('textarea');
+  textarea.addEventListener('input',()=>{if(textarea.value){textarea.value='';status(mode,'Ruang ini menerima gambar daripada Clipboard. Ambil screenshot kemudian tekan Ctrl + V.',true);}});
+ }
+ function mount(){if(!counterIT())return;mountOne('form','ocrFiles');mountOne('extra','ocrExtraFiles');}
+ // Hanya wrap kaedah paparan OCR. Tidak ubah fungsi asal simpan/upload/backend.
+ const originalShow=window.ocrShowForm;
+ if(typeof originalShow==='function'){
+  window.ocrShowForm=function(){const result=originalShow.apply(this,arguments);mount();return result;};
+ }
+ const originalOpen=window.ocrOpenRecord;
+ if(typeof originalOpen==='function'){
+  window.ocrOpenRecord=async function(){const result=await originalOpen.apply(this,arguments);mount();return result;};
+ }
+ // Tersedia jika OCR sudah terbuka ketika skrip dimuat.
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
+ else mount();
+})();
+</script>
 </body>
 </html>
