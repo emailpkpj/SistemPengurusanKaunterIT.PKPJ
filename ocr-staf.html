@@ -494,6 +494,67 @@ body.staff-ready {min-height:100dvh;background:#f2f6fb;color:#173650}
  .ocr-menu .ocr-tab {flex:1;justify-content:center}
  #modalWrap .modal {max-height:92dvh}
 }
+
+/* ==================================================================
+   V20: UI staf lebih jelas (perubahan visual sahaja pada borang asal).
+   Semua IDs dan API semakan / gambar / screenshot / cetak sedia ada kekal.
+   ================================================================== */
+.ocr-wrap{--ocr-blue:#0e609b;--ocr-ink:#123b61;--ocr-border:#dfeaf3}
+.ocr-direct-app{width:min(1390px,100%)}
+.ocr-header{background:linear-gradient(120deg,#ffffff,#f7fbff);border:1px solid #e0ebf5;padding:17px 19px;border-radius:19px;box-shadow:0 7px 22px #173c6010}
+.ocr-kicker{background:#ecf7fe;color:#1576a8;border-color:#cce7f5}
+.ocr-h1{font-weight:850;letter-spacing:-.035em}
+.ocr-panel{border-color:#dbe6f0;box-shadow:0 9px 24px #17456808}
+.ocr-panel-title{font-size:15px;padding-bottom:12px;border-bottom:1px solid #e9eff5;margin-bottom:18px}
+.ocr-dot{background:#e9f5ff;color:#10689c;font-weight:900}
+.ocr-field label{font-size:12px;color:#214664}
+.ocr-field input,.ocr-field select,.ocr-field textarea{font-size:13px;border-color:#cbdde9;background:#fff;min-height:44px}
+.ocr-field textarea{line-height:1.65;min-height:92px}
+.ocr-field:has(#ocrNotes) textarea,.ocr-field:has(#ocrFollow) textarea{min-height:76px}
+.ocr-direct-top{background:linear-gradient(110deg,#082f51,#14557d)}
+.ocr-direct-brand .ocr-direct-title{font-weight:850}
+.ocr-v20-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:-3px 0 17px}
+.ocr-v20-step{border:1px solid #dde8f2;border-radius:13px;padding:11px 13px;display:flex;align-items:center;gap:10px;background:#fff;color:#3c5b75;font-size:12px;font-weight:750}
+.ocr-v20-step b{display:grid;place-items:center;flex:0 0 26px;height:26px;width:26px;border-radius:9px;background:#e7f4fe;color:#0f689d;font-size:12px}
+.ocr-v20-step small{display:block;font-weight:500;font-size:10px;color:#71879a;margin-top:2px}
+.ocr-v20-doc-select{background:#f6fbff!important;border-color:#a9cfe9!important;font-weight:740;color:#164e78!important}
+.ocr-v20-doc-label{font-size:11px;font-weight:760;color:#56758e;margin:8px 0 5px}
+.ocr-v20-doc-detail{font-size:11px;line-height:1.65;padding:10px 11px;color:#285677;background:#edf7ff;border:1px solid #d5e8f6;border-radius:9px;margin-top:8px}
+.ocr-v20-field-help{font-size:11px;margin:6px 0 0;color:#68839a;line-height:1.5}
+.ocr-v20-selected-hint{display:block;color:#287099;font-size:11px;font-weight:650;margin:7px 0 0}
+.ocr-v20-actionhint{font-size:11px;margin:12px 0;color:#49728c}
+.ocr-v20-intro{padding:12px 13px;background:#edf8ff;color:#355e7c;border:1px solid #d5eafa;border-radius:11px;font-size:12px;line-height:1.55;margin-bottom:15px}
+.ocr-v20-intro strong{color:#105b8d}
+.ocr-v20-reportbox{border:1px solid #d8e6f1;border-radius:15px;background:linear-gradient(180deg,#f6fbff,#fff);padding:14px 15px;margin:1px 0 16px}
+.ocr-v20-filterhead{font-size:13px;color:#154b76;font-weight:850;display:flex;align-items:center;gap:7px;margin:0 0 11px}
+.ocr-v20-filterhead span{font-weight:550;font-size:11px;color:#6f8499}
+.ocr-v20-filtergrid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(165px,1fr) auto;gap:10px;align-items:end}
+.ocr-v20-filtergrid label,.ocr-v20-rangegrid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:750;color:#4f6a83}
+.ocr-v20-filtergrid input,.ocr-v20-filtergrid select,.ocr-v20-rangegrid input{height:43px;min-height:43px;border-radius:10px;background:#fff;border:1px solid #cbdde9;padding:9px 11px;color:#1b476b;font-size:12px}
+.ocr-v20-filtergrid .ocr-btn{height:43px;white-space:nowrap}
+.ocr-v20-range{font-size:12px;margin-top:11px;color:#3d6989}
+.ocr-v20-range summary{cursor:pointer;font-weight:760;list-style:none;padding:4px 0}
+.ocr-v20-range summary::-webkit-details-marker{display:none}
+.ocr-v20-range summary::before{content:'▸';margin-right:7px}
+.ocr-v20-range[open] summary::before{content:'▾'}
+.ocr-v20-rangegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.ocr-v20-range-note{font-size:10px;color:#71869a;line-height:1.5;margin-top:8px}
+.ocr-v20-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ocr-v20-toolbar .ocr-btn{min-height:38px}
+.ocr-v20-pagebar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 0 4px;font-size:11px;color:#53728c}
+.ocr-v20-pagebar .ocr-btn{min-height:34px;padding:7px 10px}
+.ocr-v20-bulk-done{background:#e5f7ed;border-color:#b6e1c7;color:#11683d}
+.ocr-v20-bulk-done:hover:not(:disabled){background:#d5f1e3}
+.ocr-v20-bulkstatus{flex-basis:100%;font-size:11px;line-height:1.5;color:#1d7354}
+.ocr-v20-bulkstatus.error{color:#a33a31}
+.ocr-v20-bulkstatus:empty{display:none}
+.ocr-v20-tag{display:inline-flex;background:#e7f4fb;color:#1a6696;border-radius:9px;padding:6px 10px;margin-bottom:8px;font-weight:750;font-size:11px}
+.ocr-v20-actionbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.ocr-v20-actionbar .ocr-btn-primary{min-width:190px}
+.ocr-v20-helpicon{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#e2f3ff;color:#0f6092;font-weight:800;margin-right:4px}
+@media(max-width:800px){.ocr-v20-filtergrid{grid-template-columns:1fr 1fr}.ocr-v20-filtergrid .ocr-btn{grid-column:1/-1}.ocr-v20-steps{gap:7px}.ocr-v20-step{padding:10px;font-size:11px}}
+@media(max-width:600px){.ocr-v20-steps{grid-template-columns:1fr}.ocr-v20-step{min-height:44px}.ocr-v20-step small{margin-left:auto}.ocr-v20-filtergrid,.ocr-v20-rangegrid{grid-template-columns:1fr}.ocr-v20-filtergrid .ocr-btn{grid-column:auto}.ocr-v20-range{margin-top:6px}.ocr-v20-actionbar{display:flex;flex-direction:column;align-items:stretch}.ocr-v20-actionbar .ocr-btn{width:100%}.ocr-direct-app{padding:11px 10px 35px}.ocr-header{padding:14px}.ocr-v20-reportbox{padding:12px}.ocr-v20-filterhead{flex-wrap:wrap}.ocr-v20-bulk-done{width:100%}}
+
 </style>
 </head>
 <body class="staff-ready">
@@ -762,24 +823,45 @@ async function ocrShowList(){
  ocrEnsureIT();closeMenu();setActiveNav('ocr');
  const root=document.getElementById('content');
  root.innerHTML=`<section class="ocr-wrap">${ocrHeader('list')}<div class="ocr-panel"><div class="ocr-listtools">
- <input id="ocrSearch" placeholder="Cari nama dokumen, kesalahan atau rujukan" onkeydown="if(event.key==='Enter')ocrLoadList()">
+ <input id="ocrSearch" placeholder="Cari nama dokumen, kesalahan atau rujukan" onkeydown="if(event.key==='Enter')ocrLoadList(1)">
  <select id="ocrFilter"><option value="">Semua Status</option><option>Baharu</option><option>Dalam Semakan</option><option>Selesai</option></select>
- <button class="ocr-btn ocr-btn-primary" onclick="ocrLoadList()">Cari Rekod</button></div>
- <div id="ocrResults"><div class="ocr-empty">Sedang memuatkan rekod OCR...</div></div></div><div id="ocrConfigArea"></div></section>`;
+ <button class="ocr-btn ocr-btn-primary" onclick="ocrLoadList(1)">Cari Rekod</button></div>
+  <div class="ocr-v20-reportbox" aria-label="Tapis laporan mengikut tarikh">
+    <div class="ocr-v20-filterhead">📅 Carian &amp; Susunan Tarikh <span>Tanpa perlu taip nama atau nombor rujukan</span></div>
+    <div class="ocr-v20-filtergrid">
+      <label>Tarikh Rekod (1 hari)<input id="ocrV20Day" type="date" onchange="ocrV20DateInput('day')"></label>
+      <label>Susunan Tarikh<select id="ocrV20Sort" onchange="ocrLoadList(1)"><option value="desc">Terkini dahulu ↓</option><option value="asc">Terlama dahulu ↑</option></select></label>
+      <button class="ocr-btn ocr-btn-primary" type="button" onclick="ocrLoadList(1)">🔍 Cari Tarikh</button>
+    </div>
+    <details class="ocr-v20-range" id="ocrV20RangePanel"><summary>Atau cari mengikut julat tarikh (mula hingga akhir)</summary>
+      <div class="ocr-v20-rangegrid"><label>Tarikh Mula<input type="date" id="ocrV20From" onchange="ocrV20DateInput('range')"></label><label>Tarikh Akhir<input type="date" id="ocrV20To" onchange="ocrV20DateInput('range')"></label></div>
+      <div class="ocr-v20-range-note">Apabila julat diisi, pilihan satu hari akan dikosongkan secara automatik.</div>
+    </details>
+    <div class="ocr-v20-toolbar" style="margin-top:10px"><button class="ocr-btn" type="button" onclick="ocrV20ResetDates()">Kosongkan Tarikh</button><span class="ocr-note" id="ocrV20FilterText">Semua tarikh dipaparkan.</span></div>
+  </div>
+  <div id="ocrResults"><div class="ocr-empty">Sedang memuatkan rekod OCR...</div></div></div><div id="ocrConfigArea"></div></section>`;
 await ocrLoadList();
 }
-async function ocrLoadList(){
+let OCR_V20_REPORT_PAGE=1;
+async function ocrLoadList(pageNumber){
  ocrEnsureIT(); const area=document.getElementById('ocrResults');if(!area)return;
+  if(pageNumber!==undefined)OCR_V20_REPORT_PAGE=Math.max(1,Math.floor(Number(pageNumber)||1));
  const q=ocrVal('ocrSearch').trim(),status=ocrVal('ocrFilter');
- area.innerHTML='<div class="ocr-empty">Memuatkan rekod OCR...</div>';
- try{
-  const response=await ocrRequest('ocrListRecords',{query:q,status,limit:150});
+  const day=ocrVal('ocrV20Day'),dateFrom=ocrVal('ocrV20From'),dateTo=ocrVal('ocrV20To'),sort=ocrVal('ocrV20Sort')||'desc';
+  const dateHelp=document.getElementById('ocrV20FilterText');
+  if(dateHelp)dateHelp.textContent=day?'Tarikh dipilih: '+day:(dateFrom||dateTo)?'Julat tarikh: '+(dateFrom||'Awal')+' hingga '+(dateTo||'Kini'):'Semua tarikh dipaparkan.';
+  if(dateFrom&&dateTo&&dateFrom>dateTo){area.innerHTML='<div class="ocr-progress ocr-progress-error">Tarikh Mula tidak boleh melebihi Tarikh Akhir.</div>';return;}
+  area.innerHTML='<div class="ocr-empty"><span class="spin"></span> Sedang memuatkan Senarai / Laporan OCR...</div>';
+  try{
+   const response=await ocrRequest('ocrListRecordsByDate',{query:q,status,date:day,dateFrom,dateTo,sort,page:OCR_V20_REPORT_PAGE,pageSize:60});
   const rows=response.records||[],counts=response.counts||{};
   const stat=`<div class="ocr-statline"><span class="ocr-stat"><b>${Number(counts.all)||0}</b>Jumlah Rekod</span><span class="ocr-stat"><b>${Number(counts.baharu)||0}</b>Baharu</span><span class="ocr-stat"><b>${Number(counts.review)||0}</b>Semakan</span><span class="ocr-stat"><b>${Number(counts.done)||0}</b>Selesai</span></div>`;
-  if(!rows.length){area.innerHTML=stat+'<div class="ocr-empty">Tiada rekod OCR ditemui.</div>';return;}
+  if(!rows.length){area.innerHTML=stat+'<div class="ocr-empty">Tiada rekod OCR ditemui untuk tarikh atau penapis ini. Cuba kosongkan tarikh.</div>';return;}
   const table=`<div class="ocr-tablewrap"><table class="ocr-table"><thead><tr><th>Rujukan / Tarikh</th><th>Nama Dokumen</th><th>Kesalahan</th><th>Gambar</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.ref)}</b><div class="ocr-note">${fmt(r.createdAt)}</div></td><td class="ocr-tdname">${esc(r.documentName)}</td><td>${esc((r.errorDescription||'').slice(0,95))}${(r.errorDescription||'').length>95?'…':''}</td><td>${Number(r.photoCount)||0}</td><td>${ocrStatusBadge(r.status)}</td><td><button class="ocr-btn" onclick="ocrOpenRecord('${esc(r.id)}')">Buka</button><button class="ocr-btn ocr-btn-edit" onclick="ocrOpenEdit('${esc(r.id)}')" aria-label="Kemaskini rekod ${esc(r.ref)}">✏ Kemaskini</button><button class="ocr-btn ocr-btn-print" onclick="ocrPrintRecord('${esc(r.id)}')" aria-label="Cetak rekod ${esc(r.ref)}">🖨 Cetak</button></td></tr>`).join('')}</tbody></table></div>`;
   const mobile=`<div class="ocr-mobile-list">${rows.map(r=>`<div class="ocr-mobile-item"><div class="ocr-smallcaps">${esc(r.ref)} · ${fmt(r.createdAt)}</div><div style="font-size:14px;font-weight:800;color:#153e64;margin:8px 0">${esc(r.documentName)}</div><div class="ocr-note">${esc((r.errorDescription||'').slice(0,130))}</div><div class="ocr-rowline">${ocrStatusBadge(r.status)}<div class="ocr-actions" style="margin:0"><button class="ocr-btn" onclick="ocrOpenRecord('${esc(r.id)}')">Buka</button><button class="ocr-btn ocr-btn-edit" onclick="ocrOpenEdit('${esc(r.id)}')">✏ Kemaskini</button><button class="ocr-btn ocr-btn-print" onclick="ocrPrintRecord('${esc(r.id)}')">🖨 Cetak</button></div></div></div>`).join('')}</div>`;
-  area.innerHTML=stat+table+mobile+`<div class="ocr-note" style="margin-top:10px">Memaparkan ${rows.length} daripada ${response.total} rekod sepadan. Lampiran disimpan dalam folder OCR_BUKTI e-Kaunter.</div>`;
+  const page=Math.max(1,Number(response.page)||1),pages=Math.max(1,Number(response.totalPages)||1);
+   const pager=pages>1?`<div class="ocr-v20-pagebar"><span>Halaman <b>${page}</b> daripada <b>${pages}</b> · ${Number(response.total)||0} rekod</span><div class="ocr-v20-toolbar"><button class="ocr-btn" type="button" ${page===1?'disabled':''} onclick="ocrLoadList(${Math.max(1,page-1)})">← Sebelumnya</button><button class="ocr-btn" type="button" ${page>=pages?'disabled':''} onclick="ocrLoadList(${Math.min(pages,page+1)})">Seterusnya →</button></div></div>`:'';
+   area.innerHTML=stat+table+mobile+pager+`<div class="ocr-note" style="margin-top:10px">Memaparkan ${rows.length} rekod pada halaman ${page} daripada ${Number(response.total)||0} rekod sepadan. Lampiran dalam OCR_BUKTI e-Kaunter.</div>`;
  }catch(e){area.innerHTML=`<div class="ocr-progress" style="background:#fff1ef;color:#a7473b">${esc(e.message||e)}</div>`;}
 }
 async function ocrOpenRecord(id){
@@ -1264,6 +1346,7 @@ async function ocrUploadExtraPhotos(recordId){
 (function(){
  'use strict';
  const chosen=new Set();
+ let ocrV20BulkBusy=false;
  const PDF_SOURCES=[
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
@@ -1638,8 +1721,8 @@ async function ocrUploadExtraPhotos(recordId){
   if(!toolbar)return;
   chosen.clear();
   let bar=document.getElementById('ocrV16BulkBar');
-  if(!bar){bar=document.createElement('div');bar.id='ocrV16BulkBar';bar.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 12px;border:1px solid #dae8f2;padding:12px;border-radius:12px;background:#f6faff';toolbar.insertAdjacentElement('afterend',bar);}
-  bar.innerHTML='<label style="display:flex;gap:7px;align-items:center;font-weight:700;font-size:12px"><input type="checkbox" id="ocrV16SelectAll" style="width:17px;height:17px"> Pilih semua rekod dipaparkan</label><button type="button" class="ocr-btn ocr-btn-print" id="ocrV16BulkBtn" disabled>🖨 Cetak Pukal (0)</button><span id="ocrV16BulkHint" style="font-size:11px;color:#6d8398">Pilih rekod untuk cetak satu halaman bagi setiap halaman PDF atau gambar.</span>';
+  if(!bar){bar=document.createElement('div');bar.id='ocrV16BulkBar';bar.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 12px;border:1px solid #dae8f2;padding:12px;border-radius:12px;background:#f6faff';(document.querySelector('.ocr-v20-reportbox')||toolbar).insertAdjacentElement('afterend',bar);}
+  bar.innerHTML='<label style="display:flex;gap:7px;align-items:center;font-weight:700;font-size:12px"><input type="checkbox" id="ocrV16SelectAll" style="width:17px;height:17px"> Pilih semua rekod dipaparkan</label><button type="button" class="ocr-btn ocr-btn-print" id="ocrV16BulkBtn" disabled>🖨 Cetak Pukal (0)</button><button type="button" class="ocr-btn ocr-v20-bulk-done" id="ocrV20BulkDone" disabled>✓ Selesai Pukal (0)</button><span id="ocrV16BulkHint" style="font-size:11px;color:#6d8398">Tanda rekod untuk Cetak Pukal atau menukar status kepada Selesai.</span><span class="ocr-v20-bulkstatus" id="ocrV20BulkStatus" role="status" aria-live="polite"></span>';
   const found=new Map();
   for(const b of result.querySelectorAll('button[onclick^="ocrOpenRecord"]')){
    const m=String(b.getAttribute('onclick')||'').match(/ocrOpenRecord\('([^']+)'\)/);
@@ -1659,7 +1742,8 @@ async function ocrUploadExtraPhotos(recordId){
   const update=()=>{
    for(const [id,boxes] of found)for(const cb of boxes)cb.checked=chosen.has(id);
    const all=document.getElementById('ocrV16SelectAll');if(all)all.checked=found.size>0&&chosen.size===found.size;
-   const btn=document.getElementById('ocrV16BulkBtn');if(btn){btn.disabled=!chosen.size;btn.textContent='🖨 Cetak Pukal ('+chosen.size+')';}
+   const btn=document.getElementById('ocrV16BulkBtn');if(btn){btn.disabled=!chosen.size||ocrV20BulkBusy;btn.textContent='🖨 Cetak Pukal ('+chosen.size+')';}
+    const doneBtn=document.getElementById('ocrV20BulkDone');if(doneBtn){doneBtn.disabled=!chosen.size||ocrV20BulkBusy;doneBtn.textContent=ocrV20BulkBusy?'⏳ Memproses...':'✓ Selesai Pukal ('+chosen.size+')';}
   };
   bar.querySelector('#ocrV16SelectAll').addEventListener('change',e=>{if(e.target.checked){for(const id of found.keys())chosen.add(id);}else chosen.clear();update();});
   result.querySelectorAll('.ocr-v16-mark').forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)chosen.add(cb.dataset.id);else chosen.delete(cb.dataset.id);update();}));
@@ -1668,6 +1752,35 @@ async function ocrUploadExtraPhotos(recordId){
    if(chosen.size>25&&!confirm('Anda memilih '+chosen.size+' rekod. Proses cetakan mungkin menggunakan banyak memori. Teruskan?'))return;
    buildPrint([...chosen]);
   });
+  const doneButton=bar.querySelector('#ocrV20BulkDone');
+   doneButton.addEventListener('click',async()=>{
+    if(ocrV20BulkBusy||!chosen.size)return;
+    if(typeof ensureDirectStaff==='function'&&!ensureDirectStaff())return;
+    const ids=[...chosen];
+    if(!confirm('Tandakan '+ids.length+' rekod dipilih sebagai SELESAI?\n\nRekod yang sudah Selesai akan dilepasi. Data, catatan dan semua gambar tidak diubah.'))return;
+    ocrV20BulkBusy=true;update();
+    const note=document.getElementById('ocrV20BulkStatus');
+    let completed=0,skipped=0,processed=0;
+    try{
+     for(let i=0;i<ids.length;i+=20){
+      if(note)note.textContent='Sedang mengemaskini rekod '+(i+1)+'–'+Math.min(ids.length,i+20)+' daripada '+ids.length+'...';
+      const result=await ocrRequest('ocrBulkCompleteRecords',ids.slice(i,i+20),ACTIVE_STAFF);
+      completed+=Number(result.completed)||0;
+      skipped+=Number(result.alreadyDone)||0;
+      processed+=Math.min(20,ids.length-i);
+      if(note)note.textContent='Diproses '+processed+'/'+ids.length+' · Baharu selesai: '+completed+' · Sedia selesai: '+skipped;
+     }
+     chosen.clear();
+     if(typeof directNotice==='function')directNotice('Selesai Pukal berjaya: '+completed+' rekod dikemas kini, '+skipped+' sudah berstatus Selesai.');
+     await ocrLoadList();
+    }catch(e){
+     const msg='Selesai Pukal terhenti selepas '+processed+'/'+ids.length+' rekod: '+(e.message||e)+'. Semak status sebelum cuba lagi.';
+     if(note){note.classList.add('error');note.textContent=msg;}
+     if(typeof directNotice==='function')directNotice(msg,true);
+    }finally{
+     ocrV20BulkBusy=false;update();
+    }
+   });
   update();
  }
  // Ganti hanya aliran CETAK V14. Data, menu dan fungsi simpan OCR kekal.
@@ -1805,6 +1918,93 @@ async function ocrUploadExtraPhotos(recordId){
  else mount();
 })();
 
+</script>
+
+<script id="ocr-staf-v20-ui">
+/* V20: bantuan antaramuka sahaja — simpan OCR kekal guna #ocrDocument/#ocrEditDocument. */
+(function(){
+ 'use strict';
+ const DOC_OPTIONS=[
+  {text:'KAD PENGENALAN PEMOHON (DEPAN DAN BELAKANG)'},
+  {text:'SIJIL KELAHIRAN'},
+  {text:'SLIP GAJI 3 BULAN TERKINI'},
+  {text:'SURAT PENGESAHAN MAJIKAN (DICOP DAN DISAHKAN OLEH MAJIKAN) / AKUAN SUMPAH PENDAPATAN (BEKERJA SENDIRI / TIDAK BEKERJA) TERKINI'},
+  {text:'PENYATA KWSP TAHUN TERKINI / TARIKH TERKINI'},
+  {text:'KAD ORANG KELAINAN UPAYA (OKU) (DEPAN DAN BELAKANG)'},
+  {text:'BUKTI TEMPOH MENETAP SEPULUH (10) TAHUN DI NEGERI JOHOR BAGI BUKAN KELAHIRAN NEGERI JOHOR', detail:'Contoh bukti: sijil kelahiran anak, sijil berhenti sekolah anak, sijil berhenti sekolah, salinan buku akaun bank yang dikeluarkan di Negeri Johor, atau surat pengesahan majikan yang beralamat di Negeri Johor.'},
+  {text:'SIJIL PERCERAIAN / SIJIL KEMATIAN'}
+ ];
+ const escapeV20=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function mountDocPicker(inputId,selectId){
+  const input=document.getElementById(inputId);
+  if(!input||document.getElementById(selectId))return;
+  const field=input.closest('.ocr-field');if(!field)return;
+  const label=field.querySelector('label');
+  if(label)label.innerHTML='Nama Dokumen <span class="ocr-required">*</span>';
+  const box=document.createElement('div');box.className='ocr-v20-doc-picker';
+  box.innerHTML=`<div class="ocr-v20-doc-label">Pilih dokumen daripada senarai</div><select id="${selectId}" class="ocr-v20-doc-select" aria-label="Senarai dokumen OCR"><option value="">— Pilih nama dokumen —</option>${DOC_OPTIONS.map((d,i)=>`<option value="${i}">${i+1}. ${escapeV20(d.text)}</option>`).join('')}<option value="manual">✏ Lain-lain — Taip sendiri</option></select><div class="ocr-v20-doc-detail" hidden></div><div class="ocr-v20-doc-label">Nama dokumen yang akan disimpan (boleh ubah / taip)</div>`;
+  field.insertBefore(box,input);
+  const select=box.querySelector('select'),detail=box.querySelector('.ocr-v20-doc-detail');
+  const initial=String(input.value||'').trim();
+  const match=DOC_OPTIONS.findIndex(d=>d.text===initial);
+  select.value=match>=0?String(match):initial?'manual':'';
+  input.placeholder='Pilih di atas atau taip nama dokumen sendiri';
+  input.setAttribute('aria-label','Nama dokumen untuk disimpan');
+  const help=document.createElement('div');help.className='ocr-v20-field-help';help.textContent='Medan ini wajib. Pilihan dropdown boleh disunting sebelum simpan.';field.appendChild(help);
+  function showDetails(){const index=Number(select.value);const d=Number.isInteger(index)&&select.value!==''&&select.value!=='manual'?DOC_OPTIONS[index]:null;detail.hidden=!(d&&d.detail);detail.textContent=d?.detail||'';}
+  select.addEventListener('change',()=>{
+   if(select.value==='manual'){input.value='';input.focus();}
+   else if(select.value!==''){const d=DOC_OPTIONS[Number(select.value)];if(d)input.value=d.text;}
+   else input.value='';
+   showDetails();
+  });
+  input.addEventListener('input',()=>{const ix=DOC_OPTIONS.findIndex(d=>d.text===input.value);select.value=ix>=0?String(ix):input.value?'manual':'';showDetails();});
+  showDetails();
+ }
+ function improveForm(){
+  const wrap=document.querySelector('.ocr-wrap'),grid=wrap?.querySelector('.ocr-grid');
+  if(!grid)return;
+  if(!wrap.querySelector('.ocr-v20-steps')){
+   const row=document.createElement('div');row.className='ocr-v20-steps';row.innerHTML=`<div class="ocr-v20-step"><b>1</b><div>Pilih Dokumen<small>Pilih atau taip nama</small></div></div><div class="ocr-v20-step"><b>2</b><div>Terangkan Kesalahan<small>Isi maklumat semakan</small></div></div><div class="ocr-v20-step"><b>3</b><div>Lampirkan &amp; Simpan<small>Kamera / PDF / Screenshot</small></div></div>`;grid.before(row);
+  }
+  const cards=grid.querySelectorAll('.ocr-panel');
+  const leftTitle=cards[0]?.querySelector('.ocr-panel-title'),rightTitle=cards[1]?.querySelector('.ocr-panel-title');
+  if(leftTitle)leftTitle.innerHTML='<span class="ocr-dot">1</span> Butiran Dokumen &amp; Kesalahan';
+  if(rightTitle){const unlimited=rightTitle.querySelector('.ocr-unlimited');rightTitle.innerHTML='<span class="ocr-dot">2</span> Lampiran Bukti Gambar / PDF ';if(unlimited)rightTitle.appendChild(unlimited);}
+  if(cards[0]&&!cards[0].querySelector('.ocr-v20-intro'))cards[0].querySelector('.ocr-panel-title')?.insertAdjacentHTML('afterend','<div class="ocr-v20-intro"><strong>Langkah mudah:</strong> Pilih jenis dokumen, terangkan kesalahan, kemudian lampirkan bukti sebelum Simpan Rekod.</div>');
+  mountDocPicker('ocrDocument','ocrV20DocPreset');
+  const error=document.getElementById('ocrError');
+  if(error&&!error.closest('.ocr-field').querySelector('.ocr-v20-field-help')){const h=document.createElement('div');h.className='ocr-v20-field-help';h.textContent='Contoh: tarikh tidak terkini, tidak ditandatangani, dokumen kabur atau tiada cop majikan.';error.closest('.ocr-field').appendChild(h);}
+  const p=cards[1]?.querySelector('.ocr-sub');
+  if(p)p.textContent='Pilih salah satu cara: ambil gambar, pilih fail PDF/gambar, atau tampal screenshot. Semua lampiran dipaparkan di bawah.';
+  const area=document.getElementById('ocrProgressArea');
+  const footer=area?.closest('.ocr-panel');
+  if(footer){const info=footer.querySelector('.ocr-note');if(info)info.textContent='Rekod disimpan dalam Sistem Semakan OCR sahaja. Gambar dan PDF kekal bersama rekod.';}
+ }
+ function improveEdit(){
+  if(!document.getElementById('ocrEditDocument'))return;
+  mountDocPicker('ocrEditDocument','ocrV20EditPreset');
+  const el=document.querySelector('.ocr-edit-heading');if(el)el.textContent='Kemaskini Butiran Rekod OCR';
+ }
+ window.ocrV20DateInput=function(mode){
+  if(mode==='day'){
+   const d=document.getElementById('ocrV20Day');
+   if(d&&d.value){for(const id of ['ocrV20From','ocrV20To']){const f=document.getElementById(id);if(f)f.value='';}}
+  }else{
+   const day=document.getElementById('ocrV20Day');if(day)day.value='';
+  }
+ };
+ window.ocrV20ResetDates=function(){
+  for(const id of ['ocrV20Day','ocrV20From','ocrV20To']){const f=document.getElementById(id);if(f)f.value='';}
+  const sort=document.getElementById('ocrV20Sort');if(sort)sort.value='desc';
+  ocrLoadList(1);
+ };
+ const origShowForm=window.ocrShowForm;
+ window.ocrShowForm=function(...args){const out=origShowForm.apply(this,args);improveForm();return out;};
+ const origOpenEdit=window.ocrOpenEdit;
+ window.ocrOpenEdit=async function(...args){const out=await origOpenEdit.apply(this,args);improveEdit();return out;};
+ if(document.getElementById('ocrDocument'))improveForm();
+})();
 </script>
 
 <script id="ocr-direct-start">
