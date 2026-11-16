@@ -555,6 +555,46 @@ body.staff-ready {min-height:100dvh;background:#f2f6fb;color:#173650}
 @media(max-width:800px){.ocr-v20-filtergrid{grid-template-columns:1fr 1fr}.ocr-v20-filtergrid .ocr-btn{grid-column:1/-1}.ocr-v20-steps{gap:7px}.ocr-v20-step{padding:10px;font-size:11px}}
 @media(max-width:600px){.ocr-v20-steps{grid-template-columns:1fr}.ocr-v20-step{min-height:44px}.ocr-v20-step small{margin-left:auto}.ocr-v20-filtergrid,.ocr-v20-rangegrid{grid-template-columns:1fr}.ocr-v20-filtergrid .ocr-btn{grid-column:auto}.ocr-v20-range{margin-top:6px}.ocr-v20-actionbar{display:flex;flex-direction:column;align-items:stretch}.ocr-v20-actionbar .ocr-btn{width:100%}.ocr-direct-app{padding:11px 10px 35px}.ocr-header{padding:14px}.ocr-v20-reportbox{padding:12px}.ocr-v20-filterhead{flex-wrap:wrap}.ocr-v20-bulk-done{width:100%}}
 
+
+.ocr-direct-staff{display:none!important}
+.ocr-direct-app{width:100%!important;max-width:none!important;margin:0!important;padding:22px 18px 64px!important}
+.ocr-wrap{max-width:none!important}
+.ocr-grid{grid-template-columns:minmax(0,1.45fr) minmax(340px,.95fr)!important}
+.ocr-header{padding:18px 20px}
+.ocr-v21-compactnote{display:none}
+.ocr-v21-audit-settings{margin-top:18px;padding:11px 12px;border:1px solid #deebf4;border-radius:12px;background:#fbfdff}
+.ocr-v21-audit-settings summary{cursor:pointer;font-size:12px;font-weight:800;color:#265b80}
+.ocr-v21-docselect{width:100%;height:48px;border:1px solid #b8d4e7;background:#f5faff;border-radius:12px;padding:11px 12px;margin:0 0 9px;color:#16436c;font-size:13px;font-weight:700;outline:none}
+.ocr-v21-docselect:focus{border-color:#388ed0;box-shadow:0 0 0 3px #c5e8fe}
+.ocr-v21-manual-label{font-size:11px;color:#456b83;font-weight:800;margin:4px 0 7px}
+.ocr-v21-manual-label[hidden]{display:none}
+.ocr-paste-zone .ocr-paste-help{display:none}
+.ocr-paste-title{justify-content:space-between}
+.ocr-icon-btn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:999px;border:1px solid #cde0ed;background:#f3f9fe;color:#0d5d92;font-weight:800;cursor:pointer}
+.ocr-icon-btn:hover{background:#e5f4ff}
+.ocr-panel-title .ocr-icon-btn{margin-left:auto}
+.ocr-v21-info-box{display:none}
+.ocr-v21-docbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.ocr-v21-docbar .ocr-v20-doc-label{margin:0;font-size:12px}
+.ocr-v21-doc-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ocr-v21-settings-link{font-size:11px;font-weight:700;color:#1a6696;background:#eef7ff;border:1px solid #d4e8f6;padding:6px 10px;border-radius:999px;cursor:pointer}
+.ocr-v21-settings-link:hover{background:#e2f2ff}
+.ocr-v21-doc-picker datalist{display:none}
+.ocr-v21-hidden{display:none!important}
+.ocr-v21-minihelp{font-size:11px;color:#69849a;line-height:1.5;margin-top:6px}
+.ocr-v21-list{display:grid;gap:8px;margin-top:14px;max-height:340px;overflow:auto;padding-right:2px}
+.ocr-v21-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #deebf4;background:#fbfdff;border-radius:10px;padding:9px 11px}
+.ocr-v21-item b{font-size:12px;color:#173f64;line-height:1.45}
+.ocr-v21-item button{border:1px solid #e5b9b3;background:#fff5f3;color:#a64639;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.ocr-v21-item button:hover{background:#ffece8}
+.ocr-v21-addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;margin-top:14px}
+.ocr-v21-addrow input{min-height:42px;border:1px solid #cadde9;border-radius:10px;padding:10px 12px;font-size:13px}
+.ocr-v21-headline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.ocr-v21-muted{font-size:11px;color:#6e8498;line-height:1.5}
+.ocr-v21-headergear{min-width:40px}
+.ocr-v21-modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px}
+@media(max-width:950px){.ocr-direct-app{padding:16px 12px 50px!important}.ocr-grid{grid-template-columns:1fr!important}}
+
 </style>
 </head>
 <body class="staff-ready">
@@ -590,7 +630,7 @@ const esc = (v='') => String(v).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','
 const fmt = v => !v?'-':(()=>{try{return new Intl.DateTimeFormat('ms-MY',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(v));}catch(e){return String(v);}})();
 function closeMenu(){} // Tiada sidebar e-Kaunter pada portal ini.
 function setActiveNav(){} // Hanya dua tab dalaman OCR digunakan.
-function pageDashboard(){return ocrShowList();}
+function pageDashboard(){return ocrShowForm();}
 function showLoader(t='Memuatkan...'){const n=$('loaderText');if(n)n.textContent=t;$('loader').classList.add('show');}
 function hideLoader(){$('loader').classList.remove('show');}
 function openModal(html){$('modal').innerHTML=html;$('modal').scrollTop=0;$('modalWrap').classList.add('show');document.body.style.overflow='hidden';}
@@ -609,17 +649,13 @@ async function api(action,...args){
  return out;
 }
 function directNotice(message,isError=false){const n=$('directNotice');if(!n)return;n.textContent=message||'';n.className='ocr-direct-notice'+(message?' show':'')+(isError?' error':'');}
-function directStaffName(){return $('directStaffName').value.trim().slice(0,100);}
+function directStaffName(){const el=$('directStaffName');return (el?.value||'Staf Kaunter IT').trim().slice(0,100)||'Staf Kaunter IT';}
 function setDirectStaffName(name){
  ACTIVE_STAFF=String(name||'').trim().slice(0,100);
  try{if(ACTIVE_STAFF)localStorage.setItem('pkpj_ocr_direct_staff',ACTIVE_STAFF);else localStorage.removeItem('pkpj_ocr_direct_staff');}catch(e){}
  if(ACTIVE_STAFF)directNotice('');
 }
-function ensureDirectStaff(){
- if(directStaffName()){setDirectStaffName(directStaffName());return true;}
- directNotice('Sila masukkan Nama Staf di bahagian atas sebelum menyimpan atau mengemaskini rekod.',true);
- $('directStaffName').focus();return false;
-}
+function ensureDirectStaff(){setDirectStaffName(directStaffName()||'Staf Kaunter IT');return true;}
 async function loadDirectStaffNames(){
  try{
   const result=await api('getITStaffNames');
@@ -671,8 +707,8 @@ const ocrVal=id=>document.getElementById(id)?.value||'';
 const ocrRequest=(action,...args)=>api(action,...args);
 function ocrEnsureIT(){ if(ACTIVE_COUNTER!=='IT') throw new Error('Modul Sistem Semakan OCR hanya tersedia untuk Kaunter IT.'); }
 function ocrHeader(active){
- return `<div class="ocr-header"><div><span class="ocr-kicker">◈ MODUL KHAS KAUNTER IT</span><h1 class="ocr-h1">Sistem Semakan OCR</h1><p class="ocr-sub">Rekod dokumen yang sepatutnya ditolak tetapi diterima oleh sistem OCR.</p></div>
- <div class="ocr-menu"><button class="ocr-tab ${active==='form'?'active':''}" onclick="ocrShowForm()">＋ Daftar Isu</button><button class="ocr-tab ${active==='list'?'active':''}" onclick="ocrShowList()">☷ Senarai Rekod</button></div></div>`;
+ return `<div class="ocr-header"><div><span class="ocr-kicker">◈ MODUL KHAS KAUNTER IT</span><h1 class="ocr-h1">Sistem Semakan OCR</h1><p class="ocr-sub">Rekod semakan dokumen OCR untuk Kaunter IT.</p></div>
+ <div class="ocr-menu"><button class="ocr-tab ${active==='form'?'active':''}" onclick="ocrShowForm()">＋ Daftar Isu</button><button class="ocr-tab ${active==='list'?'active':''}" onclick="ocrShowList()">☷ Senarai Rekod</button><button class="ocr-tab ocr-v21-headergear" type="button" onclick="ocrOpenDocSettings()" title="Tetapan Dokumen">⚙</button></div></div>`;
 }
 function ocrShowPage(){
  if(ACTIVE_COUNTER!=='IT') return pageDashboard();
@@ -685,24 +721,24 @@ function ocrShowForm(){
  ${ocrHeader('form')}
  <div class="ocr-grid">
   <div class="ocr-panel"><div class="ocr-panel-title"><span class="ocr-dot">▣</span>Butiran Dokumen & Kesalahan</div>
-   <div class="ocr-field"><label for="ocrDocument">Nama Dokumen <span class="ocr-required">*</span></label><input id="ocrDocument" maxlength="180" placeholder="Contoh: Penyata bank, salinan kad pengenalan..."></div>
-   <div class="ocr-field"><label for="ocrError">Kesalahan Dokumen <span class="ocr-required">*</span></label><textarea id="ocrError" maxlength="3000" placeholder="Terangkan kenapa dokumen patut ditolak tetapi OCR menerimanya."></textarea></div>
+   <div class="ocr-field"><label for="ocrDocument">Nama Dokumen <span class="ocr-required">*</span></label><input id="ocrDocument" maxlength="180" placeholder="Pilih atau taip nama dokumen"></div>
+   <div class="ocr-field"><label for="ocrError">Kesalahan Dokumen <span class="ocr-required">*</span></label><textarea id="ocrError" maxlength="3000" placeholder="Terangkan isu atau kesalahan dokumen."></textarea></div>
    <div class="ocr-field"><label for="ocrNotes">Catatan</label><textarea id="ocrNotes" maxlength="3000" placeholder="Maklumat tambahan / pemerhatian pegawai."></textarea></div>
    <div class="ocr-field"><label for="ocrFollow">Catatan Tindakan</label><textarea id="ocrFollow" maxlength="3000" placeholder="Tindakan susulan yang dicadangkan / telah dibuat."></textarea></div>
   </div>
   <div class="ocr-panel"><div class="ocr-panel-title"><span class="ocr-dot">▧</span>Bukti Gambar / PDF <span class="ocr-unlimited">Tiada had bilangan</span></div>
-   <p class="ocr-sub">Boleh lampirkan seberapa banyak gambar bukti OCR yang diperlukan.</p>
+   <p class="ocr-sub ocr-v21-compactnote"></p>
    <div class="ocr-actions"><button class="ocr-btn ocr-btn-camera" type="button" onclick="document.getElementById('ocrCamera').click()">📷 Ambil Gambar</button>
    <button class="ocr-btn" type="button" onclick="document.getElementById('ocrFiles').click()">📁 Gambar / PDF</button></div>
    <input type="file" id="ocrCamera" accept="image/*" capture="environment" hidden onchange="ocrAddFiles(this)">
    <input type="file" id="ocrFiles" accept="image/*,application/pdf,.pdf" multiple hidden onchange="ocrAddFiles(this)">
-   <div class="ocr-tip"><b>Tiada had bilangan gambar.</b> Tekan Kamera berkali-kali atau pilih banyak fail serentak. Gambar akan dipampatkan dan dimuat naik <b>satu demi satu</b>; setiap fail maksimum 3 MB selepas pemampatan, tertakluk kepada kuota Google Drive.</div>
+   <div class="ocr-tip ocr-v21-info-box"><b>Tiada had bilangan gambar.</b> Tekan Kamera berkali-kali atau pilih banyak fail serentak. Gambar akan dipampatkan dan dimuat naik <b>satu demi satu</b>; setiap fail maksimum 3 MB selepas pemampatan, tertakluk kepada kuota Google Drive.</div>
    <div class="ocr-gallery-bar"><b>Gambar dipilih</b><span id="ocrPhotoCount" class="ocr-count">0 gambar</span></div>
    <div class="ocr-photo-grid" id="ocrGallery"></div><div id="ocrGalleryMore" class="ocr-gallery-more"></div>
   </div>
  </div>
  <div class="ocr-panel" style="margin-top:14px"><div class="ocr-rowline" style="margin-top:0;border:0;padding:0">
-  <div><div style="font-size:12px;font-weight:850;color:#16436e">Rekod OCR khusus IT</div><div class="ocr-note">Disimpan dalam tab OCR khusus; tidak dicampur dengan Senarai Kes e-Kaunter.</div></div>
+  <div><div style="font-size:12px;font-weight:850;color:#16436e">Rekod OCR khusus IT</div></div>
   <div class="ocr-actions" style="margin:0"><button class="ocr-btn ocr-btn-primary" id="ocrSubmitBtn" type="button" onclick="ocrSubmit()">Simpan Rekod OCR</button></div>
  </div><div id="ocrProgressArea" aria-live="polite"></div></div>
  <div id="ocrConfigArea"></div>
@@ -934,7 +970,7 @@ async function ocrSaveEdit(id){
  ocrEnsureIT();
  const documentName=ocrVal('ocrEditDocument').trim();
  const errorDescription=ocrVal('ocrEditError').trim();
- if(!documentName){$('ocrEditDocument').focus();return alert('Sila isi Nama Dokumen.');}
+ if(!documentName){(document.querySelector('.ocr-edit-wrap .ocr-v21-docselect')||$('ocrEditDocument')).focus();return alert('Sila pilih Nama Dokumen.');}
  if(!errorDescription){$('ocrEditError').focus();return alert('Sila isi Kesalahan Dokumen.');}
  const btn=$('ocrEditSaveBtn'),status=$('ocrEditMessage');
  if(!btn||btn.disabled)return;
@@ -1920,71 +1956,153 @@ async function ocrUploadExtraPhotos(recordId){
 
 </script>
 
-<script id="ocr-staf-v20-ui">
-/* V20: bantuan antaramuka sahaja — simpan OCR kekal guna #ocrDocument/#ocrEditDocument. */
+<script id="ocr-staf-v21-ui">
+/* V21: kemas kini antaramuka borang OCR + tetapan senarai dokumen. */
 (function(){
  'use strict';
- const DOC_OPTIONS=[
-  {text:'KAD PENGENALAN PEMOHON (DEPAN DAN BELAKANG)'},
-  {text:'SIJIL KELAHIRAN'},
-  {text:'SLIP GAJI 3 BULAN TERKINI'},
-  {text:'SURAT PENGESAHAN MAJIKAN (DICOP DAN DISAHKAN OLEH MAJIKAN) / AKUAN SUMPAH PENDAPATAN (BEKERJA SENDIRI / TIDAK BEKERJA) TERKINI'},
-  {text:'PENYATA KWSP TAHUN TERKINI / TARIKH TERKINI'},
-  {text:'KAD ORANG KELAINAN UPAYA (OKU) (DEPAN DAN BELAKANG)'},
-  {text:'BUKTI TEMPOH MENETAP SEPULUH (10) TAHUN DI NEGERI JOHOR BAGI BUKAN KELAHIRAN NEGERI JOHOR', detail:'Contoh bukti: sijil kelahiran anak, sijil berhenti sekolah anak, sijil berhenti sekolah, salinan buku akaun bank yang dikeluarkan di Negeri Johor, atau surat pengesahan majikan yang beralamat di Negeri Johor.'},
-  {text:'SIJIL PERCERAIAN / SIJIL KEMATIAN'}
+ const DEFAULT_DOC_OPTIONS=[
+  'KAD PENGENALAN PEMOHON (DEPAN DAN BELAKANG)',
+  'SIJIL KELAHIRAN',
+  'SLIP GAJI 3 BULAN TERKINI',
+  'SURAT PENGESAHAN MAJIKAN (DICOP DAN DISAHKAN OLEH MAJIKAN) / AKUAN SUMPAH PENDAPATAN (BEKERJA SENDIRI / TIDAK BEKERJA) TERKINI',
+  'PENYATA KWSP TAHUN TERKINI / TARIKH TERKINI',
+  'KAD ORANG KELAINAN UPAYA (OKU) (DEPAN DAN BELAKANG)',
+  'BUKTI TEMPOH MENETAP SEPULUH (10) TAHUN DI NEGERI JOHOR BAGI BUKAN KELAHIRAN NEGERI JOHOR',
+  'SIJIL PERCERAIAN / SIJIL KEMATIAN'
  ];
- const escapeV20=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- function mountDocPicker(inputId,selectId){
+ let DOC_OPTIONS=[...DEFAULT_DOC_OPTIONS];
+ const escHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ async function loadDocOptions(){
+  try{
+   const data=await ocrRequest('ocrGetDocOptions');
+   const items=Array.isArray(data?.items)?data.items:[];
+   if(Array.isArray(data?.items)) DOC_OPTIONS=items.filter(Boolean).map(v=>String(v).trim()).filter(Boolean);
+  }catch(e){DOC_OPTIONS=[...DEFAULT_DOC_OPTIONS];}
+ }
+ async function saveDocOptions(items){
+  const cleaned=[...new Set((items||[]).map(v=>String(v||'').trim()).filter(Boolean))].slice(0,60);
+  await ocrRequest('ocrSaveDocOptions',cleaned);
+  DOC_OPTIONS=cleaned;
+ }
+ function mountDocPicker(inputId,listId){
   const input=document.getElementById(inputId);
-  if(!input||document.getElementById(selectId))return;
-  const field=input.closest('.ocr-field');if(!field)return;
+  if(!input)return;
+  const field=input.closest('.ocr-field'); if(!field)return;
+  const initial=String(input.value||'').trim();
+  field.querySelectorAll('.ocr-v21-docbar,.ocr-v21-docselect,.ocr-v21-manual-label,datalist[data-ocr-v21="1"],.ocr-v20-field-help,.ocr-v20-selected-hint,.ocr-v20-doc-picker,.ocr-v20-doc-detail').forEach(el=>el.remove());
   const label=field.querySelector('label');
   if(label)label.innerHTML='Nama Dokumen <span class="ocr-required">*</span>';
-  const box=document.createElement('div');box.className='ocr-v20-doc-picker';
-  box.innerHTML=`<div class="ocr-v20-doc-label">Pilih dokumen daripada senarai</div><select id="${selectId}" class="ocr-v20-doc-select" aria-label="Senarai dokumen OCR"><option value="">— Pilih nama dokumen —</option>${DOC_OPTIONS.map((d,i)=>`<option value="${i}">${i+1}. ${escapeV20(d.text)}</option>`).join('')}<option value="manual">✏ Lain-lain — Taip sendiri</option></select><div class="ocr-v20-doc-detail" hidden></div><div class="ocr-v20-doc-label">Nama dokumen yang akan disimpan (boleh ubah / taip)</div>`;
-  field.insertBefore(box,input);
-  const select=box.querySelector('select'),detail=box.querySelector('.ocr-v20-doc-detail');
-  const initial=String(input.value||'').trim();
-  const match=DOC_OPTIONS.findIndex(d=>d.text===initial);
-  select.value=match>=0?String(match):initial?'manual':'';
-  input.placeholder='Pilih di atas atau taip nama dokumen sendiri';
-  input.setAttribute('aria-label','Nama dokumen untuk disimpan');
-  const help=document.createElement('div');help.className='ocr-v20-field-help';help.textContent='Medan ini wajib. Pilihan dropdown boleh disunting sebelum simpan.';field.appendChild(help);
-  function showDetails(){const index=Number(select.value);const d=Number.isInteger(index)&&select.value!==''&&select.value!=='manual'?DOC_OPTIONS[index]:null;detail.hidden=!(d&&d.detail);detail.textContent=d?.detail||'';}
-  select.addEventListener('change',()=>{
-   if(select.value==='manual'){input.value='';input.focus();}
-   else if(select.value!==''){const d=DOC_OPTIONS[Number(select.value)];if(d)input.value=d.text;}
-   else input.value='';
-   showDetails();
-  });
-  input.addEventListener('input',()=>{const ix=DOC_OPTIONS.findIndex(d=>d.text===input.value);select.value=ix>=0?String(ix):input.value?'manual':'';showDetails();});
-  showDetails();
- }
- function improveForm(){
-  const wrap=document.querySelector('.ocr-wrap'),grid=wrap?.querySelector('.ocr-grid');
-  if(!grid)return;
-  if(!wrap.querySelector('.ocr-v20-steps')){
-   const row=document.createElement('div');row.className='ocr-v20-steps';row.innerHTML=`<div class="ocr-v20-step"><b>1</b><div>Pilih Dokumen<small>Pilih atau taip nama</small></div></div><div class="ocr-v20-step"><b>2</b><div>Terangkan Kesalahan<small>Isi maklumat semakan</small></div></div><div class="ocr-v20-step"><b>3</b><div>Lampirkan &amp; Simpan<small>Kamera / PDF / Screenshot</small></div></div>`;grid.before(row);
+  input.removeAttribute('list');
+  input.placeholder='Taip nama dokumen lain...';
+  input.setAttribute('aria-label','Nama dokumen lain');
+  const bar=document.createElement('div');
+  bar.className='ocr-v21-docbar';
+  bar.innerHTML=`<div class="ocr-v20-doc-label">Pilih dokumen daripada senarai</div><div class="ocr-v21-doc-actions"><button type="button" class="ocr-v21-settings-link" onclick="ocrOpenDocSettings()">⚙ Tetapan</button></div>`;
+  const select=document.createElement('select');
+  select.id=listId;
+  select.className='ocr-v21-docselect';
+  select.setAttribute('aria-label','Senarai dokumen');
+  select.innerHTML=`<option value="">— Pilih nama dokumen —</option>${DOC_OPTIONS.map((v,i)=>`<option value="${i}" title="${escHtml(v)}">${i+1}. ${escHtml(v)}</option>`).join('')}<option value="manual">✏ Lain-lain — Taip sendiri</option>`;
+  const manualLabel=document.createElement('div');
+  manualLabel.className='ocr-v21-manual-label';
+  manualLabel.textContent='Nama dokumen lain';
+  const matched=DOC_OPTIONS.findIndex(v=>v===initial);
+  select.value=matched>=0?String(matched):initial?'manual':'';
+  input.parentNode.insertBefore(bar,input);
+  input.parentNode.insertBefore(select,input);
+  input.parentNode.insertBefore(manualLabel,input);
+  function syncDisplay(){
+    const manual=select.value==='manual';
+    manualLabel.hidden=!manual;
+    input.classList.toggle('ocr-v21-hidden',!manual);
+    if(manual)input.setAttribute('aria-required','true');else input.removeAttribute('aria-required');
   }
-  const cards=grid.querySelectorAll('.ocr-panel');
-  const leftTitle=cards[0]?.querySelector('.ocr-panel-title'),rightTitle=cards[1]?.querySelector('.ocr-panel-title');
-  if(leftTitle)leftTitle.innerHTML='<span class="ocr-dot">1</span> Butiran Dokumen &amp; Kesalahan';
-  if(rightTitle){const unlimited=rightTitle.querySelector('.ocr-unlimited');rightTitle.innerHTML='<span class="ocr-dot">2</span> Lampiran Bukti Gambar / PDF ';if(unlimited)rightTitle.appendChild(unlimited);}
-  if(cards[0]&&!cards[0].querySelector('.ocr-v20-intro'))cards[0].querySelector('.ocr-panel-title')?.insertAdjacentHTML('afterend','<div class="ocr-v20-intro"><strong>Langkah mudah:</strong> Pilih jenis dokumen, terangkan kesalahan, kemudian lampirkan bukti sebelum Simpan Rekod.</div>');
-  mountDocPicker('ocrDocument','ocrV20DocPreset');
-  const error=document.getElementById('ocrError');
-  if(error&&!error.closest('.ocr-field').querySelector('.ocr-v20-field-help')){const h=document.createElement('div');h.className='ocr-v20-field-help';h.textContent='Contoh: tarikh tidak terkini, tidak ditandatangani, dokumen kabur atau tiada cop majikan.';error.closest('.ocr-field').appendChild(h);}
-  const p=cards[1]?.querySelector('.ocr-sub');
-  if(p)p.textContent='Pilih salah satu cara: ambil gambar, pilih fail PDF/gambar, atau tampal screenshot. Semua lampiran dipaparkan di bawah.';
-  const area=document.getElementById('ocrProgressArea');
-  const footer=area?.closest('.ocr-panel');
-  if(footer){const info=footer.querySelector('.ocr-note');if(info)info.textContent='Rekod disimpan dalam Sistem Semakan OCR sahaja. Gambar dan PDF kekal bersama rekod.';}
+  syncDisplay();
+  select.addEventListener('change',()=>{
+   const val=select.value;
+   if(val==='manual'){
+    input.value='';
+    syncDisplay();input.focus();
+   }else{
+    input.value=val!==''?DOC_OPTIONS[Number(val)]||'':'';
+    syncDisplay();
+   }
+  });
  }
- function improveEdit(){
+ function infoButton(title,html){
+  return `<button type="button" class="ocr-icon-btn" title="${escHtml(title)}" aria-label="${escHtml(title)}" onclick='ocrOpenInfoModal(${JSON.stringify(title)}, ${JSON.stringify(html)})'>i</button>`;
+ }
+ window.ocrOpenInfoModal=function(title,html){
+  openModal(`<div class="ocr-panel"><div class="ocr-headline"><div><div class="ocr-smallcaps">Maklumat</div><h3 style="margin:6px 0 0;color:#153d63">${escHtml(title)}</h3></div><button class="ocr-icon-btn" type="button" onclick="closeModal()">×</button></div><div class="ocr-note" style="font-size:13px;line-height:1.7;color:#365a77;margin-top:14px">${html}</div><div class="ocr-v21-modal-actions"><button class="ocr-btn ocr-btn-primary" type="button" onclick="closeModal()">Tutup</button></div></div>`);
+ };
+ window.ocrOpenDocSettings=function(){
+  const list=DOC_OPTIONS.map((item,idx)=>`<div class="ocr-v21-item"><b>${idx+1}. ${escHtml(item)}</b><button type="button" onclick="ocrRemoveDocOption(${idx})">Buang</button></div>`).join('') || '<div class="ocr-note">Tiada senarai dokumen.</div>';
+  openModal(`<div class="ocr-panel"><div class="ocr-v21-headline"><div><div class="ocr-smallcaps">Tetapan</div><h3 style="margin:4px 0 0;color:#153d63">Senarai Dokumen OCR</h3></div><button class="ocr-icon-btn" type="button" onclick="closeModal()">×</button></div><div class="ocr-v21-muted">Tambah atau buang pilihan dokumen untuk dropdown/ruang cadangan Nama Dokumen.</div><div class="ocr-v21-list" id="ocrV21DocList">${list}</div><div class="ocr-v21-addrow"><input id="ocrV21NewDoc" maxlength="220" placeholder="Tambah nama dokumen baharu"><button type="button" class="ocr-btn ocr-btn-primary" onclick="ocrAddDocOption()">+ Tambah</button></div><details class="ocr-v21-audit-settings"><summary>Identiti Staf (untuk rekod tindakan)</summary><div class="ocr-v21-muted" style="margin:9px 0">Nama staf tidak dipaparkan pada bar atas. Jika ingin merekodkan nama pegawai pada tindakan OCR, isi di bawah.</div><div class="ocr-v21-addrow"><input id="ocrV21StaffName" maxlength="100" value="${escHtml(ACTIVE_STAFF||'Staf Kaunter IT')}" placeholder="Nama staf"><button type="button" class="ocr-btn" onclick="ocrV21SaveStaff()">Simpan Nama</button></div></details><div class="ocr-v21-modal-actions"><button type="button" class="ocr-btn" onclick="closeModal()">Tutup</button></div></div>`);
+ };
+ window.ocrV21SaveStaff=function(){
+  const input=document.getElementById('ocrV21StaffName');
+  const name=String(input?.value||'').trim();
+  if(!name)return alert('Sila masukkan nama staf terlebih dahulu.');
+  const hidden=document.getElementById('directStaffName'); if(hidden)hidden.value=name;
+  setDirectStaffName(name);
+  alert('Nama staf untuk rekod tindakan telah disimpan pada peranti ini.');
+ };
+ window.ocrAddDocOption=async function(){
+  const input=document.getElementById('ocrV21NewDoc'); if(!input)return;
+  const value=String(input.value||'').trim(); if(!value){input.focus();return;}
+  const next=[...DOC_OPTIONS]; if(next.some(v=>v.toLocaleLowerCase('ms-MY')===value.toLocaleLowerCase('ms-MY')))return alert('Nama dokumen sudah berada dalam senarai.'); next.push(value);
+  try{await saveDocOptions(next); closeModal(); ocrOpenDocSettings(); refreshDocInputs();}catch(e){alert(e.message||e);}
+ };
+ window.ocrRemoveDocOption=async function(index){
+  if(!confirm('Buang pilihan dokumen daripada senarai? Rekod OCR lama tidak akan dipadam.'))return;
+  const next=DOC_OPTIONS.filter((_,i)=>i!==index);
+  try{await saveDocOptions(next); closeModal(); ocrOpenDocSettings(); refreshDocInputs();}catch(e){alert(e.message||e);}
+ };
+ function refreshDocInputs(){
+  ['ocrDocument','ocrEditDocument'].forEach((id,idx)=>{if(document.getElementById(id))mountDocPicker(id,'ocrV21DocList'+idx);});
+ }
+ function simplifyForm(){
+  const wrap=document.querySelector('.ocr-wrap');
+  const grid=wrap?.querySelector('.ocr-grid');
+  if(!grid)return;
+  const cards=grid.querySelectorAll('.ocr-panel');
+  const left=cards[0], right=cards[1];
+  wrap.querySelector('.ocr-v20-steps')?.remove();
+  wrap.querySelectorAll('.ocr-v20-intro').forEach(el=>el.remove());
+  if(left){
+    const title=left.querySelector('.ocr-panel-title');
+    if(title){title.innerHTML='<span class="ocr-dot">1</span> Butiran Dokumen &amp; Kesalahan '+infoButton('Butiran Dokumen','Isi nama dokumen dan ringkasan isu atau kesalahan dokumen.');}
+    left.querySelectorAll('.ocr-v20-field-help').forEach(el=>el.remove());
+  }
+  if(right){
+    const title=right.querySelector('.ocr-panel-title');
+    const badge=title?.querySelector('.ocr-unlimited');
+    if(title){title.innerHTML='<span class="ocr-dot">2</span> Lampiran Bukti Gambar / PDF '+infoButton('Lampiran Bukti','Gunakan butang <b>Ambil Gambar</b> atau <b>Gambar / PDF</b> untuk memuat naik lampiran. Tiada had bilangan. Setiap fail akan dimuat naik satu demi satu.'); if(badge)title.appendChild(badge);}
+    const sub=right.querySelector('.ocr-sub'); if(sub)sub.remove();
+    const tip=right.querySelector('.ocr-tip'); if(tip)tip.remove();
+  }
+  simplifyPasteZones();
+  const notes=document.querySelectorAll('.ocr-note');
+  notes.forEach(n=>{if(/Disimpan dalam tab OCR khusus|Lampiran dalam OCR_BUKTI|Rekod disimpan dalam Sistem Semakan OCR sahaja/i.test(n.textContent||''))n.classList.add('ocr-v21-hidden');});
+  const footerInfo=document.querySelector('#ocrProgressArea')?.closest('.ocr-panel')?.querySelector('div[style*="font-size:12px"]');
+  if(footerInfo){
+    const holder=footerInfo.parentElement;
+    if(holder && !holder.querySelector('.ocr-icon-btn')) footerInfo.insertAdjacentHTML('beforeend',' '+infoButton('Maklumat Simpanan','Rekod OCR disimpan secara berasingan dalam sistem semakan OCR Kaunter IT. Lampiran gambar dan PDF dikekalkan bersama rekod.'));
+  }
+  mountDocPicker('ocrDocument','ocrV21DocListA');
+ }
+ function simplifyPasteZones(){
+  document.querySelectorAll('.ocr-paste-zone').forEach(zone=>{
+   const title=zone.querySelector('.ocr-paste-title');
+   if(title&&!title.querySelector('.ocr-icon-btn'))title.insertAdjacentHTML('beforeend',infoButton('Cara Tampal Screenshot','Windows: Tekan <b>Win + Shift + S</b>, pilih kawasan skrin, klik ruangan tampal, kemudian tekan <b>Ctrl + V</b>. Mac: Tekan Control + Shift + Command + 4, kemudian Command + V. Screenshot akan dimasukkan sebagai gambar dan boleh diberi tajuk pilihan.'));
+   const status=zone.querySelector('.ocr-paste-status');
+   if(status&&/^Belum ada screenshot/i.test(status.textContent.trim()))status.textContent='';
+  });
+ }
+ function simplifyEdit(){
   if(!document.getElementById('ocrEditDocument'))return;
-  mountDocPicker('ocrEditDocument','ocrV20EditPreset');
-  const el=document.querySelector('.ocr-edit-heading');if(el)el.textContent='Kemaskini Butiran Rekod OCR';
+  mountDocPicker('ocrEditDocument','ocrV21DocListB');
+  const heading=document.querySelector('.ocr-edit-heading'); if(heading)heading.textContent='Kemaskini Butiran Rekod OCR';
  }
  window.ocrV20DateInput=function(mode){
   if(mode==='day'){
@@ -2000,27 +2118,48 @@ async function ocrUploadExtraPhotos(recordId){
   ocrLoadList(1);
  };
  const origShowForm=window.ocrShowForm;
- window.ocrShowForm=function(...args){const out=origShowForm.apply(this,args);improveForm();return out;};
+ // Borang muncul segera, walaupun sambungan Apps Script lambat.
+ let docOptionsFetch=null;
+ function refreshOptionsInBackground(){
+  if(!docOptionsFetch){
+   docOptionsFetch=loadDocOptions().then(()=>refreshDocInputs()).catch(()=>{}).finally(()=>{docOptionsFetch=null;});
+  }
+ }
+ window.ocrShowForm=function(...args){
+  const out=origShowForm.apply(this,args);
+  simplifyForm();
+  refreshOptionsInBackground();
+  return out;
+ };
+ const origOpenRecord=window.ocrOpenRecord;
+ window.ocrOpenRecord=async function(...args){
+  const out=await origOpenRecord.apply(this,args);
+  simplifyPasteZones();
+  return out;
+ };
  const origOpenEdit=window.ocrOpenEdit;
- window.ocrOpenEdit=async function(...args){const out=await origOpenEdit.apply(this,args);improveEdit();return out;};
- if(document.getElementById('ocrDocument'))improveForm();
+ window.ocrOpenEdit=async function(...args){
+  const out=await origOpenEdit.apply(this,args);
+  simplifyEdit();
+  refreshOptionsInBackground();
+  return out;
+ };
+ if(document.getElementById('ocrDocument')){simplifyForm();refreshOptionsInBackground();}
 })();
 </script>
 
 <script id="ocr-direct-start">
 (function(){
  const input=$('directStaffName');
- try{input.value=localStorage.getItem('pkpj_ocr_direct_staff')||'';}catch(e){}
- setDirectStaffName(input.value);
- input.addEventListener('input',()=>setDirectStaffName(input.value));
- // Tindakan menulis data mesti mempunyai nama staf bagi audit.
+ let lastStaff='Staf Kaunter IT';
+ try{lastStaff=localStorage.getItem('pkpj_ocr_direct_staff')||lastStaff;}catch(e){}
+ if(input) input.value=lastStaff;
+ setDirectStaffName(lastStaff);
  for(const name of ['ocrSubmit','ocrSaveEdit','ocrUploadExtraPhotos']){
   const original=window[name];
   if(typeof original==='function')window[name]=function(...args){if(!ensureDirectStaff())return;return original.apply(this,args);};
  }
- // Terus buka SENARAI OCR, tanpa login/gate/dashboard/menu e-Kaunter.
- Promise.resolve().then(()=>ocrShowList()).catch(e=>directNotice('Gagal membuka Senarai OCR: '+(e.message||e),true));
- loadDirectStaffNames();
+ Promise.resolve().then(()=>ocrShowForm()).catch(e=>directNotice('Gagal membuka borang OCR: '+(e.message||e),true));
 })();
 </script>
 </body></html>
